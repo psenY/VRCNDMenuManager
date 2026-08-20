@@ -32,10 +32,20 @@ namespace Custom.NDMenuManager.Editor.UI
             Props      // Batch independent props/toggles
         }
 
+        public class WizardSubToggle
+        {
+            public string toggleName = "配件开关";
+            public List<GameObject> targets = new List<GameObject>();
+            public bool defaultValue = true;
+        }
+
         public class WizardItem
         {
             public GameObject gameObject;
             public string displayName;
+            public List<GameObject> mainTargets = new List<GameObject>();
+            public List<WizardSubToggle> subToggles = new List<WizardSubToggle>();
+            public bool isExpanded = true;
         }
 
         [MenuItem("Tools/psenY7 ND Menu Manager", priority = 100)]
@@ -190,12 +200,15 @@ namespace Custom.NDMenuManager.Editor.UI
         private Button wzPresetBody;
         private Button wzPresetProps;
         private VisualElement wzDropArea;
-        private ScrollView wzDroppedItemsList;
+        private VisualElement wzDroppedItemsList;
+        private Button wzClearItemsBtn;
         private Toggle wzAutoSubToggles;
         private Toggle wzAutoMutualExclusive;
         private Toggle wzPreventNudityToggle;
         private Toggle wzAutoThumbnailToggle;
         private VisualElement wzOutfitOptionsCard;
+        private Label wzEstBudgetBadge;
+        private VisualElement wzTreePreviewContainer;
         private Button wzGenerateBtn;
 
         public void CreateGUI()
@@ -370,13 +383,17 @@ namespace Custom.NDMenuManager.Editor.UI
             wzPresetProps = rootVisualElement.Q<Button>("wzPresetProps");
 
             wzDropArea = rootVisualElement.Q<VisualElement>("wzDropArea");
-            wzDroppedItemsList = rootVisualElement.Q<ScrollView>("wzDroppedItemsList");
+            wzDroppedItemsList = rootVisualElement.Q<VisualElement>("wzDroppedItemsList");
+            wzClearItemsBtn = rootVisualElement.Q<Button>("wzClearItemsBtn");
 
             wzAutoSubToggles = rootVisualElement.Q<Toggle>("wzAutoSubToggles");
             wzAutoMutualExclusive = rootVisualElement.Q<Toggle>("wzAutoMutualExclusive");
             wzPreventNudityToggle = rootVisualElement.Q<Toggle>("wzPreventNudityToggle");
             wzAutoThumbnailToggle = rootVisualElement.Q<Toggle>("wzAutoThumbnailToggle");
             wzOutfitOptionsCard = rootVisualElement.Q<VisualElement>("wzOutfitOptionsCard");
+
+            wzEstBudgetBadge = rootVisualElement.Q<Label>("wzEstBudgetBadge");
+            wzTreePreviewContainer = rootVisualElement.Q<VisualElement>("wzTreePreviewContainer");
             wzGenerateBtn = rootVisualElement.Q<Button>("wzGenerateBtn");
 
             // Setup Mode Switch Tabs
@@ -384,10 +401,19 @@ namespace Custom.NDMenuManager.Editor.UI
             wzTabProps?.RegisterCallback<ClickEvent>(_ => SetWizardMode(WizardMode.Props));
 
             // Setup Presets
-            wzPresetWardrobe?.RegisterCallback<ClickEvent>(_ => { if (wzFolderNameField != null) wzFolderNameField.value = "衣柜"; SetWizardMode(WizardMode.Exclusive); });
-            wzPresetHair?.RegisterCallback<ClickEvent>(_ => { if (wzFolderNameField != null) wzFolderNameField.value = "发型"; SetWizardMode(WizardMode.Exclusive); });
-            wzPresetBody?.RegisterCallback<ClickEvent>(_ => { if (wzFolderNameField != null) wzFolderNameField.value = "体型"; SetWizardMode(WizardMode.Exclusive); });
-            wzPresetProps?.RegisterCallback<ClickEvent>(_ => { if (wzFolderNameField != null) wzFolderNameField.value = "饰品"; SetWizardMode(WizardMode.Props); });
+            wzPresetWardrobe?.RegisterCallback<ClickEvent>(_ => { if (wzFolderNameField != null) wzFolderNameField.value = "衣柜"; SetWizardMode(WizardMode.Exclusive); UpdateProspectiveTreePreview(); });
+            wzPresetHair?.RegisterCallback<ClickEvent>(_ => { if (wzFolderNameField != null) wzFolderNameField.value = "发型"; SetWizardMode(WizardMode.Exclusive); UpdateProspectiveTreePreview(); });
+            wzPresetBody?.RegisterCallback<ClickEvent>(_ => { if (wzFolderNameField != null) wzFolderNameField.value = "体型"; SetWizardMode(WizardMode.Exclusive); UpdateProspectiveTreePreview(); });
+            wzPresetProps?.RegisterCallback<ClickEvent>(_ => { if (wzFolderNameField != null) wzFolderNameField.value = "饰品"; SetWizardMode(WizardMode.Props); UpdateProspectiveTreePreview(); });
+
+            wzFolderNameField?.RegisterValueChangedCallback(_ => UpdateProspectiveTreePreview());
+            wzAutoMutualExclusive?.RegisterValueChangedCallback(_ => UpdateProspectiveTreePreview());
+
+            wzClearItemsBtn?.RegisterCallback<ClickEvent>(_ =>
+            {
+                wizardItems.Clear();
+                UpdateWizardDroppedList();
+            });
 
             // Setup Drop Area
             SetupWizardDropArea();
@@ -447,6 +473,8 @@ namespace Custom.NDMenuManager.Editor.UI
                     if (wzOutfitOptionsCard != null) wzOutfitOptionsCard.style.display = DisplayStyle.None;
                     break;
             }
+
+            UpdateProspectiveTreePreview();
         }
 
         #endregion
@@ -479,18 +507,11 @@ namespace Custom.NDMenuManager.Editor.UI
                             if (desc != null)
                             {
                                 currentAvatar = desc;
-                                if (avatarField != null) avatarField.value = desc.gameObject;
+                                if (avatarField != null) avatarField.SetValueWithoutNotify(desc.gameObject);
                             }
                         }
 
-                        if (!wizardItems.Exists(x => x.gameObject == go))
-                        {
-                            wizardItems.Add(new WizardItem
-                            {
-                                gameObject = go,
-                                displayName = go.name
-                            });
-                        }
+                        AddWizardItem(go);
                     }
                 }
 
@@ -498,10 +519,144 @@ namespace Custom.NDMenuManager.Editor.UI
             });
         }
 
+        private void AddWizardItem(GameObject go)
+        {
+            if (go == null || wizardItems.Exists(x => x.gameObject == go)) return;
+
+            var item = new WizardItem
+            {
+                gameObject = go,
+                displayName = go.name,
+                isExpanded = true
+            };
+
+            var meshObjects = GetMeshGameObjects(go);
+
+            if (meshObjects.Count <= 1)
+            {
+                item.mainTargets.Add(go);
+            }
+            else
+            {
+                bool autoSub = wzAutoSubToggles == null || wzAutoSubToggles.value;
+                if (autoSub)
+                {
+                    var assignedSet = new HashSet<GameObject>();
+                    var clusters = ClusterSubMeshObjects(meshObjects);
+
+                    foreach (var cluster in clusters)
+                    {
+                        if (cluster.isAccessory && cluster.objects.Count > 0)
+                        {
+                            var subToggle = new WizardSubToggle
+                            {
+                                toggleName = cluster.clusterName,
+                                defaultValue = cluster.objects.Exists(o => o.activeSelf)
+                            };
+                            subToggle.targets.AddRange(cluster.objects);
+                            item.subToggles.Add(subToggle);
+                            foreach (var o in cluster.objects) assignedSet.Add(o);
+                        }
+                    }
+
+                    // Remaining meshes go to mainTargets
+                    foreach (var obj in meshObjects)
+                    {
+                        if (!assignedSet.Contains(obj))
+                        {
+                            item.mainTargets.Add(obj);
+                        }
+                    }
+
+                    if (item.mainTargets.Count == 0 && meshObjects.Count > 0)
+                    {
+                        item.mainTargets.Add(meshObjects[0]);
+                    }
+                }
+                else
+                {
+                    item.mainTargets.AddRange(meshObjects);
+                }
+            }
+
+            wizardItems.Add(item);
+        }
+
+        private List<GameObject> GetMeshGameObjects(GameObject root)
+        {
+            var list = new List<GameObject>();
+            if (root == null) return list;
+
+            var allTrans = root.GetComponentsInChildren<Transform>(true);
+            foreach (var t in allTrans)
+            {
+                if (IsValidSubMeshItem(t))
+                {
+                    if (!list.Contains(t.gameObject)) list.Add(t.gameObject);
+                }
+            }
+            if (list.Count == 0) list.Add(root);
+            return list;
+        }
+
+        private class MeshCluster
+        {
+            public string clusterName;
+            public bool isAccessory;
+            public List<GameObject> objects = new List<GameObject>();
+        }
+
+        private List<MeshCluster> ClusterSubMeshObjects(List<GameObject> meshObjects)
+        {
+            var result = new List<MeshCluster>();
+            string[] accessoryKeywords = { "bag", "包", "jacket", "coat", "外套", "ribbon", "蝴蝶结", "发带", "tail", "马尾", "twintail", "双马尾", "glasses", "眼镜", "hat", "cap", "帽子", "shoes", "鞋", "socks", "袜", "glove", "手套", "weapon", "武器", "ear", "耳朵", "acc", "饰品", "belt", "腰带", "horn", "角", "wing", "翅膀" };
+
+            var groupedDict = new Dictionary<string, List<GameObject>>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var obj in meshObjects)
+            {
+                string nameLower = obj.name.ToLower();
+                string matchedKey = null;
+
+                foreach (var kw in accessoryKeywords)
+                {
+                    if (nameLower.Contains(kw.ToLower()))
+                    {
+                        matchedKey = kw;
+                        break;
+                    }
+                }
+
+                if (matchedKey != null)
+                {
+                    string cleanName = NormalizeClusterName(obj.name, matchedKey);
+                    if (!groupedDict.ContainsKey(cleanName)) groupedDict[cleanName] = new List<GameObject>();
+                    groupedDict[cleanName].Add(obj);
+                }
+            }
+
+            foreach (var kvp in groupedDict)
+            {
+                result.Add(new MeshCluster
+                {
+                    clusterName = kvp.Key,
+                    isAccessory = true,
+                    objects = kvp.Value
+                });
+            }
+
+            return result;
+        }
+
+        private string NormalizeClusterName(string objName, string keyword)
+        {
+            string baseName = System.Text.RegularExpressions.Regex.Replace(objName, @"[_\-\s]*(L|R|left|right|\d+)$", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+            return string.IsNullOrEmpty(baseName) ? objName : baseName;
+        }
+
         private void UpdateWizardDroppedList()
         {
             if (wzDroppedItemsList == null) return;
-
             wzDroppedItemsList.Clear();
 
             for (int i = 0; i < wizardItems.Count; i++)
@@ -510,15 +665,28 @@ namespace Custom.NDMenuManager.Editor.UI
                 var item = wizardItems[i];
                 if (item == null || item.gameObject == null) continue;
 
-                var row = new VisualElement();
-                row.AddToClassList("item-row");
+                var card = new VisualElement();
+                card.AddToClassList("wz-item-card");
 
-                // Badge
+                // Header
+                var header = new VisualElement();
+                header.AddToClassList("wz-item-card-header");
+
+                var foldBtn = new Button(() =>
+                {
+                    item.isExpanded = !item.isExpanded;
+                    UpdateWizardDroppedList();
+                })
+                {
+                    text = item.isExpanded ? "▼" : "▶"
+                };
+                foldBtn.AddToClassList("wz-foldout-btn");
+
                 var badge = new Label(index == 0 ? "#1 (默认)" : $"#{index + 1}");
                 badge.AddToClassList("item-index-badge");
                 if (index == 0) badge.AddToClassList("item-index-default");
 
-                // Move Up Button
+                // Order Buttons
                 var upBtn = new Button(() =>
                 {
                     if (index > 0)
@@ -528,14 +696,10 @@ namespace Custom.NDMenuManager.Editor.UI
                         wizardItems[index - 1] = temp;
                         UpdateWizardDroppedList();
                     }
-                })
-                {
-                    text = "▲"
-                };
+                }) { text = "▲" };
                 upBtn.AddToClassList("item-order-btn");
                 if (index == 0) upBtn.SetEnabled(false);
 
-                // Move Down Button
                 var downBtn = new Button(() =>
                 {
                     if (index < wizardItems.Count - 1)
@@ -545,46 +709,367 @@ namespace Custom.NDMenuManager.Editor.UI
                         wizardItems[index + 1] = temp;
                         UpdateWizardDroppedList();
                     }
-                })
-                {
-                    text = "▼"
-                };
+                }) { text = "▼" };
                 downBtn.AddToClassList("item-order-btn");
                 if (index == wizardItems.Count - 1) downBtn.SetEnabled(false);
 
-                // Editable Display Name Field
+                // Name Field
                 var nameInput = new TextField();
                 nameInput.value = item.displayName;
-                nameInput.AddToClassList("item-name-input");
+                nameInput.AddToClassList("wz-item-name-field");
                 nameInput.RegisterValueChangedCallback(evt =>
                 {
                     item.displayName = string.IsNullOrEmpty(evt.newValue) ? item.gameObject.name : evt.newValue;
+                    UpdateProspectiveTreePreview();
                 });
 
-                // Source Object Label
-                var sourceLabel = new Label($"({item.gameObject.name})");
-                sourceLabel.AddToClassList("item-source-label");
+                // Summary Badge (Count of main parts & sub toggles)
+                int mainTargetCount = item.mainTargets.Count > 0 ? item.mainTargets.Count : 1;
+                var summaryBadge = new Label($"主控: {mainTargetCount} 件 | 子开关: {item.subToggles.Count} 个");
+                summaryBadge.AddToClassList("wz-summary-badge");
+
+                // Add Sub-toggle button directly on header
+                var addSubBtn = new Button(() =>
+                {
+                    item.subToggles.Add(new WizardSubToggle
+                    {
+                        toggleName = $"配件 {item.subToggles.Count + 1}",
+                        defaultValue = true
+                    });
+                    item.isExpanded = true;
+                    UpdateWizardDroppedList();
+                })
+                {
+                    text = "+ 子开关"
+                };
+                addSubBtn.AddToClassList("btn-add-subtoggle");
+                addSubBtn.style.marginRight = 6;
 
                 // Delete Button
                 var delBtn = new Button(() =>
                 {
                     wizardItems.RemoveAt(index);
                     UpdateWizardDroppedList();
-                })
-                {
-                    text = "x"
-                };
+                }) { text = "x" };
                 delBtn.AddToClassList("item-del-btn");
 
-                row.Add(badge);
-                row.Add(upBtn);
-                row.Add(downBtn);
-                row.Add(nameInput);
-                row.Add(sourceLabel);
-                row.Add(delBtn);
+                header.Add(foldBtn);
+                header.Add(badge);
+                header.Add(upBtn);
+                header.Add(downBtn);
+                header.Add(nameInput);
+                header.Add(summaryBadge);
+                header.Add(addSubBtn);
+                header.Add(delBtn);
 
-                wzDroppedItemsList.Add(row);
+                card.Add(header);
+
+                // Expanded Body: Detailed Components Assignment
+                if (item.isExpanded)
+                {
+                    var body = new VisualElement();
+                    body.AddToClassList("wz-item-body");
+
+                    // 1. Main Switch Targets Section
+                    var mainTitle = new Label("【换装主开关受控部件】（随套装/发型整体显隐）：");
+                    mainTitle.AddToClassList("wz-subpart-group-title");
+                    body.Add(mainTitle);
+
+                    var mainChipsWrap = new VisualElement();
+                    mainChipsWrap.AddToClassList("wz-chips-wrap");
+
+                    var allMeshes = GetMeshGameObjects(item.gameObject);
+
+                    if (item.mainTargets.Count == 0)
+                    {
+                        var tip = new Label("(暂未分配主部件，点击下方可用散件添加)");
+                        tip.style.fontSize = 11;
+                        tip.style.color = new Color(0.5f, 0.5f, 0.6f);
+                        mainChipsWrap.Add(tip);
+                    }
+                    else
+                    {
+                        foreach (var targetGo in item.mainTargets.ToArray())
+                        {
+                            if (targetGo == null) continue;
+                            var chip = CreatePartChip(targetGo.name, "part-chip-main", () =>
+                            {
+                                item.mainTargets.Remove(targetGo);
+                                UpdateWizardDroppedList();
+                            });
+                            mainChipsWrap.Add(chip);
+                        }
+                    }
+                    body.Add(mainChipsWrap);
+
+                    // 2. Custom Sub Toggles Section
+                    if (item.subToggles.Count > 0)
+                    {
+                        var subTitle = new Label("【独立子开关】（支持一个开关同时控制多个散件，如背包、外套、双马尾）：");
+                        subTitle.AddToClassList("wz-subpart-group-title");
+                        body.Add(subTitle);
+
+                        for (int s = 0; s < item.subToggles.Count; s++)
+                        {
+                            int subIndex = s;
+                            var subToggle = item.subToggles[s];
+
+                            var subBox = new VisualElement();
+                            subBox.AddToClassList("wz-subtoggle-box");
+
+                            var subHeader = new VisualElement();
+                            subHeader.AddToClassList("wz-subtoggle-header");
+
+                            var subNameInput = new TextField();
+                            subNameInput.value = subToggle.toggleName;
+                            subNameInput.AddToClassList("wz-subtoggle-name");
+                            subNameInput.RegisterValueChangedCallback(evt =>
+                            {
+                                subToggle.toggleName = evt.newValue;
+                                UpdateProspectiveTreePreview();
+                            });
+
+                            var subDefaultToggle = new Toggle("默认开启") { value = subToggle.defaultValue };
+                            subDefaultToggle.style.marginRight = 8;
+                            subDefaultToggle.RegisterValueChangedCallback(evt => subToggle.defaultValue = evt.newValue);
+
+                            var delSubBtn = new Button(() =>
+                            {
+                                item.subToggles.RemoveAt(subIndex);
+                                UpdateWizardDroppedList();
+                            }) { text = "x" };
+                            delSubBtn.AddToClassList("item-del-btn");
+
+                            subHeader.Add(subNameInput);
+                            subHeader.Add(subDefaultToggle);
+                            subHeader.Add(delSubBtn);
+                            subBox.Add(subHeader);
+
+                            // Sub toggle targets chips
+                            var subChipsWrap = new VisualElement();
+                            subChipsWrap.AddToClassList("wz-chips-wrap");
+
+                            if (subToggle.targets.Count == 0)
+                            {
+                                var tip = new Label("(尚未分配控制散件，请从下方待分配散件中加入)");
+                                tip.style.fontSize = 11;
+                                tip.style.color = new Color(0.5f, 0.5f, 0.6f);
+                                subChipsWrap.Add(tip);
+                            }
+                            else
+                            {
+                                foreach (var targetGo in subToggle.targets.ToArray())
+                                {
+                                    if (targetGo == null) continue;
+                                    var chip = CreatePartChip(targetGo.name, "part-chip-sub", () =>
+                                    {
+                                        subToggle.targets.Remove(targetGo);
+                                        UpdateWizardDroppedList();
+                                    });
+                                    subChipsWrap.Add(chip);
+                                }
+                            }
+                            subBox.Add(subChipsWrap);
+
+                            body.Add(subBox);
+                        }
+                    }
+
+                    // 3. Available / Unassigned Mesh Objects
+                    var assignedSet = new HashSet<GameObject>(item.mainTargets);
+                    foreach (var st in item.subToggles)
+                    {
+                        foreach (var t in st.targets) assignedSet.Add(t);
+                    }
+
+                    var unassignedList = allMeshes.Where(m => !assignedSet.Contains(m)).ToList();
+                    if (unassignedList.Count > 0)
+                    {
+                        var unassignedTitle = new Label("【未分配/待添加散件】（点击快速归入主开关或子开关）：");
+                        unassignedTitle.AddToClassList("wz-subpart-group-title");
+                        body.Add(unassignedTitle);
+
+                        var unassignedWrap = new VisualElement();
+                        unassignedWrap.AddToClassList("wz-chips-wrap");
+
+                        foreach (var unassignedGo in unassignedList)
+                        {
+                            var unassignedItem = unassignedGo;
+                            var btn = new Button(() =>
+                            {
+                                var menu = new GenericMenu();
+                                menu.AddItem(new GUIContent("归入【主换装开关】"), false, () =>
+                                {
+                                    item.mainTargets.Add(unassignedItem);
+                                    UpdateWizardDroppedList();
+                                });
+
+                                foreach (var st in item.subToggles)
+                                {
+                                    var targetSt = st;
+                                    menu.AddItem(new GUIContent($"归入子开关【{targetSt.toggleName}】"), false, () =>
+                                    {
+                                        targetSt.targets.Add(unassignedItem);
+                                        UpdateWizardDroppedList();
+                                    });
+                                }
+
+                                menu.AddItem(new GUIContent("以此散件新建【独立子开关】"), false, () =>
+                                {
+                                    var newSt = new WizardSubToggle
+                                    {
+                                        toggleName = unassignedItem.name,
+                                        defaultValue = unassignedItem.activeSelf
+                                    };
+                                    newSt.targets.Add(unassignedItem);
+                                    item.subToggles.Add(newSt);
+                                    UpdateWizardDroppedList();
+                                });
+
+                                menu.ShowAsContext();
+                            })
+                            {
+                                text = $"+ {unassignedItem.name}"
+                            };
+                            btn.AddToClassList("preset-btn");
+                            btn.style.marginBottom = 4;
+                            unassignedWrap.Add(btn);
+                        }
+                        body.Add(unassignedWrap);
+                    }
+
+                    card.Add(body);
+                }
+
+                wzDroppedItemsList.Add(card);
             }
+
+            UpdateProspectiveTreePreview();
+        }
+
+        private VisualElement CreatePartChip(string name, string chipClass, Action onRemove)
+        {
+            var chip = new VisualElement();
+            chip.AddToClassList("part-chip");
+            chip.AddToClassList(chipClass);
+
+            var label = new Label(name);
+            label.AddToClassList("part-chip-text");
+
+            var delBtn = new Label("x");
+            delBtn.AddToClassList("part-chip-del");
+            delBtn.RegisterCallback<ClickEvent>(_ => onRemove?.Invoke());
+
+            chip.Add(label);
+            chip.Add(delBtn);
+            return chip;
+        }
+
+        private void UpdateProspectiveTreePreview()
+        {
+            if (wzTreePreviewContainer == null) return;
+            wzTreePreviewContainer.Clear();
+
+            if (wizardItems.Count == 0)
+            {
+                var emptyLabel = new Label("尚未添加任何物品。\n从上方拖入衣服或发型物体后，此处将实时渲染最终生成的菜单目录树。");
+                emptyLabel.AddToClassList("placeholder-sub");
+                emptyLabel.style.paddingTop = 40;
+                emptyLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+                wzTreePreviewContainer.Add(emptyLabel);
+
+                if (wzEstBudgetBadge != null)
+                {
+                    wzEstBudgetBadge.text = "0 / 256 bits";
+                    wzEstBudgetBadge.style.color = new Color(0.5f, 0.6f, 0.7f);
+                }
+                return;
+            }
+
+            string rootFolderName = string.IsNullOrEmpty(wzFolderNameField?.value) ? "菜单" : wzFolderNameField.value;
+            bool isExclusive = currentWizardMode == WizardMode.Exclusive;
+            int estBits = 0;
+
+            // 1. Root Folder Row
+            var rootRow = CreateProspectiveRow(0, "d_Folder Icon", $"{rootFolderName} (根菜单)", "badge-folder", "主目录");
+            wzTreePreviewContainer.Add(rootRow);
+
+            if (isExclusive)
+            {
+                estBits += 8; // Shared Int param consumes 8 bits
+            }
+
+            // 2. Items
+            for (int i = 0; i < wizardItems.Count; i++)
+            {
+                var item = wizardItems[i];
+                if (item == null || item.gameObject == null) continue;
+                string itemDisplayName = string.IsNullOrEmpty(item.displayName) ? item.gameObject.name : item.displayName;
+
+                if (isExclusive)
+                {
+                    // Subfolder for this Outfit/Hair
+                    var itemFolderRow = CreateProspectiveRow(1, "d_Folder Icon", itemDisplayName, "badge-folder", "子文件夹");
+                    wzTreePreviewContainer.Add(itemFolderRow);
+
+                    // Main Toggle Switch inside subfolder
+                    string switchPrefix = (rootFolderName.Contains("发") || rootFolderName.Contains("头")) ? "切换至" : "穿上";
+                    int mainCount = item.mainTargets.Count > 0 ? item.mainTargets.Count : 1;
+                    var mainToggleRow = CreateProspectiveRow(2, "d_FilterSelectedOnly", $"{switchPrefix} {itemDisplayName}", "badge-slot", $"槽位 #{i + 1} | 控制 {mainCount} 个组件");
+                    wzTreePreviewContainer.Add(mainToggleRow);
+
+                    // Sub Toggles inside subfolder
+                    foreach (var sub in item.subToggles)
+                    {
+                        if (sub == null || string.IsNullOrEmpty(sub.toggleName)) continue;
+                        int subCount = sub.targets.Count;
+                        var subRow = CreateProspectiveRow(2, "d_Toggle Icon", sub.toggleName, "badge-toggle", $"控制 {subCount} 个组件 | 1b");
+                        wzTreePreviewContainer.Add(subRow);
+                        estBits += 1;
+                    }
+                }
+                else
+                {
+                    // Props Mode (Direct toggle under root or sub toggles)
+                    int count = item.mainTargets.Count + item.subToggles.Sum(s => s.targets.Count);
+                    var propRow = CreateProspectiveRow(1, "d_Toggle Icon", itemDisplayName, "badge-toggle", $"控制 {count} 个组件 | 1b");
+                    wzTreePreviewContainer.Add(propRow);
+                    estBits += 1;
+                }
+            }
+
+            // Update Budget Badge
+            if (wzEstBudgetBadge != null)
+            {
+                wzEstBudgetBadge.text = $"预计 {estBits} / 256 bits";
+                wzEstBudgetBadge.style.color = estBits > 256 ? new Color(0.95f, 0.3f, 0.3f) : new Color(0.3f, 0.85f, 0.5f);
+            }
+        }
+
+        private VisualElement CreateProspectiveRow(int indentLevel, string iconName, string labelText, string badgeClass, string badgeText)
+        {
+            var row = new VisualElement();
+            row.AddToClassList("prospective-node-row");
+            row.style.paddingLeft = indentLevel * 18 + 6;
+
+            var icon = new Image();
+            icon.AddToClassList("prospective-icon");
+            icon.image = EditorGUIUtility.IconContent(iconName).image;
+            row.Add(icon);
+
+            var label = new Label(labelText);
+            label.AddToClassList("prospective-label");
+            row.Add(label);
+
+            if (!string.IsNullOrEmpty(badgeText))
+            {
+                var badge = new Label(badgeText);
+                badge.AddToClassList("prospective-badge");
+                badge.AddToClassList(badgeClass);
+                row.Add(badge);
+            }
+
+            return row;
         }
 
         private void ExecuteWizardGeneration()
@@ -617,18 +1102,17 @@ namespace Custom.NDMenuManager.Editor.UI
             RefreshAll();
             SwitchView(false);
 
-            EditorUtility.DisplayDialog("生成成功", $"已成功生成【{folderName}】完整菜单体系与缩略图！\n已自动为您切换至【菜单层级管理】面板，可即时预览与微调。", "确定");
+            EditorUtility.DisplayDialog("生成成功", $"已成功生成【{folderName}】完整菜单体系与多部件控制项！\n已自动为您切换至【菜单层级管理】面板。", "确定");
         }
 
         private void GenerateExclusiveStructure(string rootFolderName)
         {
-            bool scanSubToggles = wzAutoSubToggles == null || wzAutoSubToggles.value;
             bool mutualExclusive = wzAutoMutualExclusive == null || wzAutoMutualExclusive.value;
             bool preventNudity = wzPreventNudityToggle == null || wzPreventNudityToggle.value;
             bool genThumbnails = wzAutoThumbnailToggle == null || wzAutoThumbnailToggle.value;
             string avatarName = currentAvatar.gameObject.name;
 
-            // 1. Create main folder
+            // 1. Create main root folder
             var rootGo = new GameObject(rootFolderName);
             rootGo.transform.SetParent(currentAvatar.transform, false);
             var rootSubMenu = rootGo.AddComponent<NDSubMenu>();
@@ -641,6 +1125,7 @@ namespace Custom.NDMenuManager.Editor.UI
             for (int i = 0; i < wizardItems.Count; i++)
             {
                 var item = wizardItems[i];
+                if (item == null || item.gameObject == null) continue;
                 var targetGo = item.gameObject;
                 string itemDisplayName = string.IsNullOrEmpty(item.displayName) ? targetGo.name : item.displayName;
 
@@ -671,55 +1156,86 @@ namespace Custom.NDMenuManager.Editor.UI
                 mainToggle.DefaultValue = (i == 0);
                 mainToggle.AllowAllOff = !preventNudity;
 
-                // Target: Turn ON this item
-                mainToggle.objectTargets.Add(new GameObjectToggleTarget
+                // Add all main targets (ON)
+                var primaryMainList = item.mainTargets.Count > 0 ? item.mainTargets : new List<GameObject> { targetGo };
+                foreach (var mTarget in primaryMainList)
                 {
-                    targetObject = targetGo,
-                    activeWhenOn = true
-                });
+                    if (mTarget == null) continue;
+                    mainToggle.objectTargets.Add(new GameObjectToggleTarget
+                    {
+                        targetObject = mTarget,
+                        activeWhenOn = true
+                    });
+                }
+                if (!primaryMainList.Contains(targetGo))
+                {
+                    mainToggle.objectTargets.Add(new GameObjectToggleTarget
+                    {
+                        targetObject = targetGo,
+                        activeWhenOn = true
+                    });
+                }
 
-                // Targets: Turn OFF other items
+                // Turn OFF other items' targets
                 if (mutualExclusive)
                 {
                     for (int j = 0; j < wizardItems.Count; j++)
                     {
                         if (i == j) continue;
-                        var otherGo = wizardItems[j].gameObject;
-                        if (otherGo != null)
+                        var otherItem = wizardItems[j];
+                        if (otherItem == null || otherItem.gameObject == null) continue;
+
+                        var otherTargets = otherItem.mainTargets.Count > 0 ? otherItem.mainTargets : new List<GameObject> { otherItem.gameObject };
+                        foreach (var otherGo in otherTargets)
+                        {
+                            if (otherGo != null)
+                            {
+                                mainToggle.objectTargets.Add(new GameObjectToggleTarget
+                                {
+                                    targetObject = otherGo,
+                                    activeWhenOn = false
+                                });
+                            }
+                        }
+                        if (!otherTargets.Contains(otherItem.gameObject))
                         {
                             mainToggle.objectTargets.Add(new GameObjectToggleTarget
                             {
-                                targetObject = otherGo,
+                                targetObject = otherItem.gameObject,
                                 activeWhenOn = false
                             });
                         }
                     }
                 }
 
-                // 3. Scan children of targetGo for sub-toggles
-                if (scanSubToggles && targetGo.transform.childCount > 0)
+                // 3. Create Custom Multi-Component Sub Toggles
+                foreach (var subToggle in item.subToggles)
                 {
-                    foreach (Transform child in targetGo.transform)
+                    if (subToggle == null || string.IsNullOrEmpty(subToggle.toggleName) || subToggle.targets.Count == 0) continue;
+
+                    Texture2D subIcon = null;
+                    var primaryTarget = subToggle.targets[0];
+                    if (genThumbnails && primaryTarget != null)
                     {
-                        if (!IsValidSubMeshItem(child)) continue;
+                        var raw = ThumbnailGenerator.CaptureGameObjectThumbnail(primaryTarget);
+                        subIcon = ThumbnailGenerator.SaveThumbnailAsset(raw, avatarName, $"{itemDisplayName}_{subToggle.toggleName}");
+                    }
 
-                        Texture2D childIcon = null;
-                        if (genThumbnails)
-                        {
-                            var childRaw = ThumbnailGenerator.CaptureGameObjectThumbnail(child.gameObject);
-                            childIcon = ThumbnailGenerator.SaveThumbnailAsset(childRaw, avatarName, $"{itemDisplayName}_{child.name}");
-                        }
+                    var subToggleGo = new GameObject(subToggle.toggleName);
+                    subToggleGo.transform.SetParent(itemSubGo.transform, false);
+                    var nToggle = subToggleGo.AddComponent<NDToggleItem>();
+                    nToggle.MenuName = subToggle.toggleName;
+                    nToggle.Icon = subIcon;
+                    nToggle.ParameterName = $"Toggle_{itemDisplayName}_{subToggle.toggleName}".Replace(" ", "_");
+                    nToggle.DefaultValue = subToggle.defaultValue;
 
-                        var childToggleGo = new GameObject(child.name);
-                        childToggleGo.transform.SetParent(itemSubGo.transform, false);
-                        var childToggle = childToggleGo.AddComponent<NDToggleItem>();
-                        childToggle.MenuName = child.name;
-                        childToggle.Icon = childIcon;
-                        childToggle.ParameterName = $"Toggle_{itemDisplayName}_{child.name}".Replace(" ", "_");
-                        childToggle.DefaultValue = child.gameObject.activeSelf;
-                        childToggle.objectTargets.Add(new GameObjectToggleTarget
+                    // Bind ALL GameObjects in subToggle.targets!
+                    foreach (var targetObj in subToggle.targets)
+                    {
+                        if (targetObj == null) continue;
+                        nToggle.objectTargets.Add(new GameObjectToggleTarget
                         {
-                            targetObject = child.gameObject,
+                            targetObject = targetObj,
                             activeWhenOn = true
                         });
                     }
@@ -740,6 +1256,7 @@ namespace Custom.NDMenuManager.Editor.UI
 
             foreach (var item in wizardItems)
             {
+                if (item == null || item.gameObject == null) continue;
                 var prop = item.gameObject;
                 string propDisplayName = string.IsNullOrEmpty(item.displayName) ? prop.name : item.displayName;
 
@@ -757,11 +1274,26 @@ namespace Custom.NDMenuManager.Editor.UI
                 toggle.Icon = propIcon;
                 toggle.ParameterName = "Toggle_" + propDisplayName.Replace(" ", "_");
                 toggle.DefaultValue = prop.activeSelf;
-                toggle.objectTargets.Add(new GameObjectToggleTarget
+
+                var allTargets = new List<GameObject>(item.mainTargets);
+                if (!allTargets.Contains(prop)) allTargets.Add(prop);
+                foreach (var st in item.subToggles)
                 {
-                    targetObject = prop,
-                    activeWhenOn = true
-                });
+                    foreach (var t in st.targets)
+                    {
+                        if (!allTargets.Contains(t)) allTargets.Add(t);
+                    }
+                }
+
+                foreach (var tObj in allTargets)
+                {
+                    if (tObj == null) continue;
+                    toggle.objectTargets.Add(new GameObjectToggleTarget
+                    {
+                        targetObject = tObj,
+                        activeWhenOn = true
+                    });
+                }
             }
         }
 

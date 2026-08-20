@@ -27,9 +27,10 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- VIEW 1: Integrated Quick Wizard View -->
-        <ui:VisualElement name="wizardViewContainer" class="wizard-integrated-container">
-            <ui:ScrollView class="wizard-integrated-scroll">
+        <!-- VIEW 1: Integrated Quick Wizard View with Real-time Tree Preview -->
+        <ui:TwoPaneSplitView name="wizardViewContainer" fixed-pane-initial-dimension="560" fixed-pane-index="0" orientation="Horizontal" class="wizard-split-container">
+            <!-- Left Config Pane: Items & Sub-part Grouping -->
+            <ui:ScrollView class="wizard-config-scroll">
                 <!-- Mode Switch Tabs -->
                 <ui:VisualElement class="tab-row-integrated">
                     <ui:Button name="wzTabExclusive" text="多项互斥切换 (衣服 / 发型 / 体型)" class="tab-btn tab-active" />
@@ -50,29 +51,53 @@
 
                 <!-- Drag and Drop Target Area -->
                 <ui:VisualElement class="card-section">
-                    <ui:Label text="拖入目标物体列表 (从 Hierarchy 多选拖入下方区域)：" class="section-label" />
+                    <ui:VisualElement class="section-header-row">
+                        <ui:Label text="拖入目标物体列表 (从 Hierarchy 多选拖入下方区域)：" class="section-label" />
+                        <ui:Button name="wzClearItemsBtn" text="清空列表" class="btn-sm btn-dark" />
+                    </ui:VisualElement>
+                    
                     <ui:VisualElement name="wzDropArea" class="drop-zone">
                         <ui:Label text="[拖拽区域] 从 Hierarchy 选中衣服/发型/饰品物体拖入此处" class="drop-hint-text" />
                     </ui:VisualElement>
 
-                    <!-- Draggable Object Item List -->
-                    <ui:ScrollView name="wzDroppedItemsList" class="item-list-container">
+                    <!-- Draggable Object Item Cards with Sub-mesh Grouping -->
+                    <ui:VisualElement name="wzDroppedItemsList" class="wz-items-wrapper">
                         <!-- Populated dynamically via C# -->
-                    </ui:ScrollView>
+                    </ui:VisualElement>
                 </ui:VisualElement>
 
                 <!-- Options Card -->
                 <ui:VisualElement name="wzOutfitOptionsCard" class="card-section">
-                    <ui:Toggle name="wzAutoSubToggles" label="自动扫描子物体（外套/发饰/配件等）生成细节小开关" value="true" class="form-toggle" />
+                    <ui:Toggle name="wzAutoSubToggles" label="自动扫描子部件并尝试聚类为配件小开关" value="true" class="form-toggle" />
                     <ui:Toggle name="wzAutoMutualExclusive" label="自动配置互斥联动（换一套自动脱其他套）" value="true" class="form-toggle" />
                     <ui:Toggle name="wzPreventNudityToggle" label="开启防脱光保护 (只能在各项目间切换，无法直接关闭变裸)" value="true" class="form-toggle" />
                     <ui:Toggle name="wzAutoThumbnailToggle" label="自动生成物体 3D 缩略图图标 (保存在插件目录)" value="true" class="form-toggle" />
                 </ui:VisualElement>
-
-                <!-- Generate Button -->
-                <ui:Button name="wzGenerateBtn" text="一键自动生成完整菜单体系" class="btn-generate-integrated" />
             </ui:ScrollView>
-        </ui:VisualElement>
+
+            <!-- Right Preview Pane: Real-Time Prospective Menu Tree -->
+            <ui:VisualElement class="wizard-preview-pane">
+                <ui:VisualElement class="preview-header-card">
+                    <ui:VisualElement class="preview-header-top">
+                        <ui:Label text="生成结构实时预览" class="preview-title" />
+                        <ui:Label name="wzEstBudgetBadge" text="预计 8 / 256 bits" class="badge-pill badge-pill-green" />
+                    </ui:VisualElement>
+                    <ui:Label text="所见即所得：左侧修改物体、子部件分配或开关，右侧实时显示最终生成的 VRChat 菜单目录与控制目标。" class="preview-subtitle" />
+                </ui:VisualElement>
+
+                <!-- Live Prospective Tree View Container -->
+                <ui:ScrollView name="wzTreePreviewScroll" class="preview-tree-scroll">
+                    <ui:VisualElement name="wzTreePreviewContainer" class="preview-tree-content">
+                        <!-- Dynamically rendered prospective tree elements -->
+                    </ui:VisualElement>
+                </ui:ScrollView>
+
+                <!-- Generate Action Footer -->
+                <ui:VisualElement class="preview-footer-card">
+                    <ui:Button name="wzGenerateBtn" text="确认生成并写入 Avatar 模型" class="btn-generate-integrated" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:TwoPaneSplitView>
 
         <!-- VIEW 2: Menu Manager Hierarchy & Inspector Split View -->
         <ui:TwoPaneSplitView name="managerViewContainer" fixed-pane-initial-dimension="530" fixed-pane-index="0" orientation="Horizontal" class="main-split" style="display: none;">
