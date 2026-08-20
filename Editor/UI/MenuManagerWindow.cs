@@ -46,6 +46,7 @@ namespace Custom.NDMenuManager.Editor.UI
             public string displayName;
             public List<GameObject> mainTargets = new List<GameObject>();
             public List<WizardSubToggle> subToggles = new List<WizardSubToggle>();
+            public HashSet<GameObject> selectedSubMeshes = new HashSet<GameObject>();
             public bool isExpanded = true;
         }
 
@@ -619,6 +620,32 @@ namespace Custom.NDMenuManager.Editor.UI
             return list;
         }
 
+        private string GuessCommonClusterName(List<GameObject> objs)
+        {
+            if (objs == null || objs.Count == 0) return "配件开关";
+            if (objs.Count == 1) return objs[0].name;
+
+            // Find longest common prefix (case-insensitive)
+            string prefix = objs[0].name;
+            for (int i = 1; i < objs.Count; i++)
+            {
+                string name = objs[i].name;
+                int len = 0;
+                while (len < prefix.Length && len < name.Length && char.ToLower(prefix[len]) == char.ToLower(name[len]))
+                {
+                    len++;
+                }
+                prefix = prefix.Substring(0, len);
+            }
+
+            prefix = prefix.TrimEnd('_', '-', ' ', '.');
+            if (string.IsNullOrEmpty(prefix) || prefix.Length < 2)
+            {
+                return System.Text.RegularExpressions.Regex.Replace(objs[0].name, @"[_\-\s]*(L|R|left|right|\d+)$", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+            }
+            return prefix;
+        }
+
         private void UpdateWizardDroppedList()
         {
             if (wzDroppedItemsList == null) return;
@@ -917,12 +944,83 @@ namespace Custom.NDMenuManager.Editor.UI
                         }
                     }
 
-                    // 3. Quick Sub-Toggle Creation from Detected Sub-Meshes
+                    // 3. Quick Sub-Toggle Creation & Multi-Select Grouping
                     if (allMeshes.Count > 1)
                     {
-                        var quickSubTitle = new Label("【所有内部子部件】（点击单件高亮定位，或点击预览 3D / 建开关）：");
+                        var quickSubHeaderRow = new VisualElement();
+                        quickSubHeaderRow.style.flexDirection = FlexDirection.Row;
+                        quickSubHeaderRow.style.alignItems = Align.Center;
+                        quickSubHeaderRow.style.justifyContent = Justify.SpaceBetween;
+                        quickSubHeaderRow.style.marginBottom = 6;
+                        quickSubHeaderRow.style.marginTop = 6;
+
+                        var quickSubTitle = new Label("【所有内部子部件】（勾选多个可一键合并为单开关）：");
                         quickSubTitle.AddToClassList("wz-subpart-group-title");
-                        body.Add(quickSubTitle);
+                        quickSubTitle.style.marginBottom = 0;
+                        quickSubTitle.style.marginTop = 0;
+
+                        var actionsWrap = new VisualElement();
+                        actionsWrap.style.flexDirection = FlexDirection.Row;
+                        actionsWrap.style.alignItems = Align.Center;
+
+                        int selectedCount = item.selectedSubMeshes.Count;
+                        if (selectedCount > 0)
+                        {
+                            var createGroupBtn = new Button(() =>
+                            {
+                                var selectedList = new List<GameObject>(item.selectedSubMeshes);
+                                string guessedName = GuessCommonClusterName(selectedList);
+
+                                var newSt = new WizardSubToggle
+                                {
+                                    toggleName = guessedName,
+                                    defaultValue = selectedList.Any(g => g != null && g.activeSelf)
+                                };
+                                newSt.targets.AddRange(selectedList);
+                                item.subToggles.Add(newSt);
+                                item.selectedSubMeshes.Clear();
+                                UpdateWizardDroppedList();
+                            })
+                            {
+                                text = $"合并选中的 {selectedCount} 个部件为新开关",
+                                tooltip = $"将当前勾选的 {selectedCount} 个散件合并在一个新子开关中统一控制"
+                            };
+                            createGroupBtn.AddToClassList("btn-gen-all-subtoggles");
+                            createGroupBtn.style.marginRight = 6;
+                            actionsWrap.Add(createGroupBtn);
+
+                            var deselectBtn = new Button(() =>
+                            {
+                                item.selectedSubMeshes.Clear();
+                                UpdateWizardDroppedList();
+                            })
+                            {
+                                text = "取消勾选"
+                            };
+                            deselectBtn.AddToClassList("preset-btn");
+                            actionsWrap.Add(deselectBtn);
+                        }
+                        else
+                        {
+                            var selectAllBtn = new Button(() =>
+                            {
+                                foreach (var m in allMeshes)
+                                {
+                                    if (allMeshes.Count > 1 && m == item.gameObject) continue;
+                                    item.selectedSubMeshes.Add(m);
+                                }
+                                UpdateWizardDroppedList();
+                            })
+                            {
+                                text = "全选散件"
+                            };
+                            selectAllBtn.AddToClassList("preset-btn");
+                            actionsWrap.Add(selectAllBtn);
+                        }
+
+                        quickSubHeaderRow.Add(quickSubTitle);
+                        quickSubHeaderRow.Add(actionsWrap);
+                        body.Add(quickSubHeaderRow);
 
                         var quickSubWrap = new VisualElement();
                         quickSubWrap.AddToClassList("wz-chips-wrap");
@@ -930,18 +1028,41 @@ namespace Custom.NDMenuManager.Editor.UI
                         foreach (var meshGo in allMeshes)
                         {
                             var targetMesh = meshGo;
+                            bool isChecked = item.selectedSubMeshes.Contains(targetMesh);
 
                             var partBox = new VisualElement();
                             partBox.style.flexDirection = FlexDirection.Row;
                             partBox.style.alignItems = Align.Center;
                             partBox.AddToClassList("preset-btn");
-                            partBox.style.paddingLeft = 8;
+                            partBox.style.paddingLeft = 6;
                             partBox.style.paddingRight = 6;
                             partBox.style.marginBottom = 4;
 
+                            if (isChecked)
+                            {
+                                partBox.style.backgroundColor = new Color(0.18f, 0.28f, 0.55f);
+                                partBox.style.borderTopColor = new Color(0.38f, 0.58f, 0.95f);
+                                partBox.style.borderBottomColor = new Color(0.38f, 0.58f, 0.95f);
+                                partBox.style.borderLeftColor = new Color(0.38f, 0.58f, 0.95f);
+                                partBox.style.borderRightColor = new Color(0.38f, 0.58f, 0.95f);
+                            }
+
+                            // Checkbox toggle
+                            var checkToggle = new Toggle() { value = isChecked };
+                            checkToggle.style.marginRight = 4;
+                            checkToggle.style.marginBottom = 0;
+                            checkToggle.RegisterValueChangedCallback(evt =>
+                            {
+                                if (evt.newValue)
+                                    item.selectedSubMeshes.Add(targetMesh);
+                                else
+                                    item.selectedSubMeshes.Remove(targetMesh);
+                                UpdateWizardDroppedList();
+                            });
+
                             var pingLabel = new Label(targetMesh.name);
                             pingLabel.style.fontSize = 11.5f;
-                            pingLabel.style.color = new Color(0.9f, 0.92f, 0.98f);
+                            pingLabel.style.color = isChecked ? Color.white : new Color(0.9f, 0.92f, 0.98f);
                             pingLabel.style.marginRight = 6;
                             pingLabel.tooltip = "单击在 Hierarchy 中高亮定位，双击查看 3D 预览";
                             pingLabel.RegisterCallback<ClickEvent>(evt =>
@@ -959,9 +1080,9 @@ namespace Custom.NDMenuManager.Editor.UI
                             prevBtn.tooltip = "打开独立窗口查看 3D 渲染与网格数据";
                             prevBtn.RegisterCallback<ClickEvent>(_ => NDItemPreviewWindow.ShowPreview(targetMesh));
 
-                            var addBtn = new Label("+ 建开关");
+                            var addBtn = new Label("+ 单独建开关");
                             addBtn.AddToClassList("part-chip-add");
-                            addBtn.tooltip = "以此散件建立独立子开关";
+                            addBtn.tooltip = "以此单件建立独立子开关";
                             addBtn.RegisterCallback<ClickEvent>(_ =>
                             {
                                 var newSt = new WizardSubToggle
@@ -974,6 +1095,7 @@ namespace Custom.NDMenuManager.Editor.UI
                                 UpdateWizardDroppedList();
                             });
 
+                            partBox.Add(checkToggle);
                             partBox.Add(pingLabel);
                             partBox.Add(prevBtn);
                             partBox.Add(addBtn);
