@@ -12,6 +12,7 @@
             <ui:VisualElement class="view-switch-group">
                 <ui:Button name="viewWizardBtn" text="一键向导生成" class="view-switch-btn view-switch-active" />
                 <ui:Button name="viewManagerBtn" text="菜单层级管理" class="view-switch-btn" />
+                <ui:Button name="viewParamInspectorBtn" text="参数总览与预算" class="view-switch-btn" />
             </ui:VisualElement>
 
             <!-- Avatar Selector -->
@@ -168,9 +169,14 @@
                 </ui:VisualElement>
             </ui:ScrollView>
         </ui:TwoPaneSplitView>
+        
+        <!-- VIEW 3: Parameter Inspector View -->
+        <ui:VisualElement name="paramInspectorViewContainer" class="param-view-container" style="display: none;">
+            <!-- Populated dynamically via C# -->
+        </ui:VisualElement>
 
         <!-- Footer Budget Bar -->
-        <ui:VisualElement class="footer">
+        <ui:VisualElement name="footerBudgetArea" class="footer" tooltip="点击打开详细参数预算诊断面板">
             <ui:VisualElement class="budget-meta">
                 <ui:Label text="Avatar 参数同步预算 (256-Bit Budget)" class="budget-title" />
                 <ui:Label name="budgetStatusLabel" text="0 / 256 bits" class="budget-info" />

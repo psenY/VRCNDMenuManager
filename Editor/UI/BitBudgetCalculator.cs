@@ -1,10 +1,27 @@
 using System.Collections.Generic;
 using UnityEngine;
 using VRC.SDK3.Avatars.Components;
+using VRC.SDK3.Avatars.ScriptableObjects;
 using Custom.NDMenuManager.Runtime;
 
 namespace Custom.NDMenuManager.Editor.UI
 {
+    public class ParameterDetailInfo
+    {
+        public string Name;
+        public string ValueType; // "Bool", "Int", "Float"
+        public int BitCost; // 0, 1, 8
+        public bool IsSynced;
+        public bool IsSaved;
+        public string DefaultValue;
+        public string Category; // "基础参数", "ND 菜单控制项", "插件组件"
+        public string SourcePath;
+        public GameObject SourceGameObject;
+        public Object SourceComponent;
+        public bool IsOptimizable;
+        public string OptimizationTip;
+    }
+
     public struct BitBudgetResult
     {
         public int baseBits;
@@ -16,6 +33,7 @@ namespace Custom.NDMenuManager.Editor.UI
         public bool isExceeded;
         public string statusText;
         public Color barColor;
+        public List<ParameterDetailInfo> parameters;
     }
 
     public static class BitBudgetCalculator
@@ -24,46 +42,109 @@ namespace Custom.NDMenuManager.Editor.UI
 
         public static BitBudgetResult Calculate(VRCAvatarDescriptor descriptor)
         {
-            var parameterMap = new Dictionary<string, int>(); // paramName -> bitCost
+            var parameterMap = new Dictionary<string, ParameterDetailInfo>();
             int baseBits = 0;
 
             if (descriptor != null)
             {
-                // 1. Collect base avatar synced parameters (Contacts, OSC, Gestures, MA items)
+                // 1. Collect base avatar synced parameters (VRCExpressionParameters)
                 if (descriptor.expressionParameters != null && descriptor.expressionParameters.parameters != null)
                 {
                     foreach (var param in descriptor.expressionParameters.parameters)
                     {
-                        if (param == null || string.IsNullOrEmpty(param.name) || !param.networkSynced) continue;
-                        int bits = GetParamTypeBits(param.valueType);
-                        parameterMap[param.name] = bits;
-                        baseBits += bits;
+                        if (param == null || string.IsNullOrEmpty(param.name)) continue;
+                        int bits = param.networkSynced ? GetParamTypeBits(param.valueType) : 0;
+                        if (param.networkSynced) baseBits += bits;
+
+                        string defVal = param.valueType == VRCExpressionParameters.ValueType.Bool 
+                            ? (param.defaultValue > 0.5f ? "True" : "False") 
+                            : param.defaultValue.ToString("0.##");
+
+                        parameterMap[param.name] = new ParameterDetailInfo
+                        {
+                            Name = param.name,
+                            ValueType = param.valueType.ToString(),
+                            BitCost = bits,
+                            IsSynced = param.networkSynced,
+                            IsSaved = param.saved,
+                            DefaultValue = defVal,
+                            Category = "Avatar 基础参数 (ExpressionParams)",
+                            SourcePath = descriptor.gameObject.name,
+                            SourceGameObject = descriptor.gameObject,
+                            SourceComponent = descriptor.expressionParameters
+                        };
                     }
                 }
 
-                // 2. Merge modular NDMenu components (deduplicating by name)
+                // 2. Collect Modular NDMenu components
                 var items = descriptor.GetComponentsInChildren<INDMenuItem>(true);
                 foreach (var item in items)
                 {
-                    if (!item.Synced) continue;
                     string pName = string.IsNullOrEmpty(item.ParameterName) ? item.MenuName : item.ParameterName;
                     if (string.IsNullOrEmpty(pName)) continue;
 
                     int cost = item.GetBitCost();
-                    if (cost > 0)
+                    var mb = item as MonoBehaviour;
+                    var go = mb != null ? mb.gameObject : null;
+                    string path = go != null ? GetHierarchyPath(go) : descriptor.gameObject.name;
+
+                    string valType = "Bool";
+                    string defVal = item.DefaultValue.ToString();
+                    bool optimizable = false;
+                    string optTip = "";
+
+                    if (item is NDToggleItem toggle)
                     {
-                        if (!parameterMap.ContainsKey(pName) || parameterMap[pName] < cost)
+                        valType = toggle.UseIntParameter ? "Int" : "Bool";
+                        defVal = toggle.UseIntParameter ? toggle.ParameterValue.ToString() : (toggle.DefaultValue ? "True" : "False");
+                        if (toggle.UseIntParameter && toggle.ParameterValue <= 2)
                         {
-                            parameterMap[pName] = cost;
+                            optimizable = true;
+                            optTip = "仅有 2 项状态，可优化为 1-bit Bool (立省 7 bits)";
+                        }
+                    }
+                    else if (item is NDRadialPuppet)
+                    {
+                        valType = "Float";
+                    }
+
+                    if (!parameterMap.ContainsKey(pName))
+                    {
+                        parameterMap[pName] = new ParameterDetailInfo
+                        {
+                            Name = pName,
+                            ValueType = valType,
+                            BitCost = cost,
+                            IsSynced = item.Synced,
+                            IsSaved = item.Saved,
+                            DefaultValue = defVal,
+                            Category = "ND 菜单控制项",
+                            SourcePath = path,
+                            SourceGameObject = go,
+                            SourceComponent = mb,
+                            IsOptimizable = optimizable,
+                            OptimizationTip = optTip
+                        };
+                    }
+                    else
+                    {
+                        // Update if this item consumes more bits or adds info
+                        var existing = parameterMap[pName];
+                        if (cost > existing.BitCost) existing.BitCost = cost;
+                        if (existing.Category.Contains("基础参数"))
+                        {
+                            existing.Category += " + ND菜单关联";
                         }
                     }
                 }
             }
 
+            var paramList = new List<ParameterDetailInfo>(parameterMap.Values);
+
             int totalUsed = 0;
-            foreach (var kvp in parameterMap)
+            foreach (var p in paramList)
             {
-                totalUsed += kvp.Value;
+                if (p.IsSynced) totalUsed += p.BitCost;
             }
 
             int addedBits = Mathf.Max(0, totalUsed - baseBits);
@@ -95,22 +176,35 @@ namespace Custom.NDMenuManager.Editor.UI
                 addedBits = addedBits,
                 totalUsedBits = totalUsed,
                 maxBits = MaxBits,
-                uniqueParamCount = parameterMap.Count,
+                uniqueParamCount = paramList.Count,
                 percentage = pct,
                 isExceeded = exceeded,
                 statusText = status,
-                barColor = color
+                barColor = color,
+                parameters = paramList
             };
         }
 
-        private static int GetParamTypeBits(VRC.SDK3.Avatars.ScriptableObjects.VRCExpressionParameters.ValueType type)
+        private static string GetHierarchyPath(GameObject go)
+        {
+            var parts = new List<string>();
+            var curr = go.transform;
+            while (curr != null)
+            {
+                parts.Insert(0, curr.name);
+                curr = curr.parent;
+            }
+            return string.Join("/", parts);
+        }
+
+        private static int GetParamTypeBits(VRCExpressionParameters.ValueType type)
         {
             switch (type)
             {
-                case VRC.SDK3.Avatars.ScriptableObjects.VRCExpressionParameters.ValueType.Bool:
+                case VRCExpressionParameters.ValueType.Bool:
                     return 1;
-                case VRC.SDK3.Avatars.ScriptableObjects.VRCExpressionParameters.ValueType.Int:
-                case VRC.SDK3.Avatars.ScriptableObjects.VRCExpressionParameters.ValueType.Float:
+                case VRCExpressionParameters.ValueType.Int:
+                case VRCExpressionParameters.ValueType.Float:
                     return 8;
                 default:
                     return 0;

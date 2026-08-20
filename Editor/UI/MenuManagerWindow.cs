@@ -213,6 +213,13 @@ namespace Custom.NDMenuManager.Editor.UI
         private VisualElement wzTreePreviewContainer;
         private Button wzGenerateBtn;
 
+        private Button viewParamInspectorBtn;
+        private VisualElement paramInspectorViewContainer;
+        private string paramSearchKeyword = "";
+        private int paramFilterIndex = 0; // 0: All, 1: Synced, 2: Base, 3: NDMenu, 4: Optimizable
+
+        public enum ViewMode { Wizard, Manager, ParamInspector }
+
         public void CreateGUI()
         {
             // 1. Load Visual Tree
@@ -262,8 +269,10 @@ namespace Custom.NDMenuManager.Editor.UI
             avatarField = rootVisualElement.Q<ObjectField>("avatarSelector");
             viewWizardBtn = rootVisualElement.Q<Button>("viewWizardBtn");
             viewManagerBtn = rootVisualElement.Q<Button>("viewManagerBtn");
+            viewParamInspectorBtn = rootVisualElement.Q<Button>("viewParamInspectorBtn");
             wizardViewContainer = rootVisualElement.Q<VisualElement>("wizardViewContainer");
             managerViewContainer = rootVisualElement.Q<TwoPaneSplitView>("managerViewContainer");
+            paramInspectorViewContainer = rootVisualElement.Q<VisualElement>("paramInspectorViewContainer");
 
             playModeBtn = rootVisualElement.Q<Button>("playModeBtn");
             manualBakeBtn = rootVisualElement.Q<Button>("manualBakeBtn");
@@ -271,10 +280,13 @@ namespace Custom.NDMenuManager.Editor.UI
 
             progressFill = rootVisualElement.Q<VisualElement>("progressFill");
             budgetStatusLabel = rootVisualElement.Q<Label>("budgetStatusLabel");
+            var footerBudgetArea = rootVisualElement.Q<VisualElement>("footerBudgetArea");
 
             // Setup View Switching Tabs
-            viewWizardBtn?.RegisterCallback<ClickEvent>(_ => SwitchView(true));
-            viewManagerBtn?.RegisterCallback<ClickEvent>(_ => SwitchView(false));
+            viewWizardBtn?.RegisterCallback<ClickEvent>(_ => SwitchView(ViewMode.Wizard));
+            viewManagerBtn?.RegisterCallback<ClickEvent>(_ => SwitchView(ViewMode.Manager));
+            viewParamInspectorBtn?.RegisterCallback<ClickEvent>(_ => SwitchView(ViewMode.ParamInspector));
+            footerBudgetArea?.RegisterCallback<ClickEvent>(_ => SwitchView(ViewMode.ParamInspector));
 
             // Setup Manager View UI
             SetupManagerViewElements();
@@ -292,25 +304,20 @@ namespace Custom.NDMenuManager.Editor.UI
             RefreshAll();
         }
 
-        private void SwitchView(bool isWizard)
+        private void SwitchView(ViewMode mode)
         {
-            if (wizardViewContainer == null || managerViewContainer == null) return;
+            if (wizardViewContainer == null || managerViewContainer == null || paramInspectorViewContainer == null) return;
 
-            if (isWizard)
-            {
-                wizardViewContainer.style.display = DisplayStyle.Flex;
-                managerViewContainer.style.display = DisplayStyle.None;
-                viewWizardBtn?.AddToClassList("view-switch-active");
-                viewManagerBtn?.RemoveFromClassList("view-switch-active");
-            }
-            else
-            {
-                wizardViewContainer.style.display = DisplayStyle.None;
-                managerViewContainer.style.display = DisplayStyle.Flex;
-                viewManagerBtn?.AddToClassList("view-switch-active");
-                viewWizardBtn?.RemoveFromClassList("view-switch-active");
-                ExpandAllTreeItems();
-            }
+            wizardViewContainer.style.display = (mode == ViewMode.Wizard) ? DisplayStyle.Flex : DisplayStyle.None;
+            managerViewContainer.style.display = (mode == ViewMode.Manager) ? DisplayStyle.Flex : DisplayStyle.None;
+            paramInspectorViewContainer.style.display = (mode == ViewMode.ParamInspector) ? DisplayStyle.Flex : DisplayStyle.None;
+
+            viewWizardBtn?.EnableInClassList("view-switch-active", mode == ViewMode.Wizard);
+            viewManagerBtn?.EnableInClassList("view-switch-active", mode == ViewMode.Manager);
+            viewParamInspectorBtn?.EnableInClassList("view-switch-active", mode == ViewMode.ParamInspector);
+
+            if (mode == ViewMode.Manager) ExpandAllTreeItems();
+            if (mode == ViewMode.ParamInspector) RenderParamInspectorView();
         }
 
         #region Setup Views
@@ -1296,7 +1303,7 @@ namespace Custom.NDMenuManager.Editor.UI
 
             // Refresh & switch directly to Manager View so user sees the result immediately!
             RefreshAll();
-            SwitchView(false);
+            SwitchView(ViewMode.Manager);
 
             EditorUtility.DisplayDialog("生成成功", $"已成功生成【{folderName}】完整菜单体系与多部件控制项！\n已自动为您切换至【菜单层级管理】面板。", "确定");
         }
@@ -2770,6 +2777,363 @@ namespace Custom.NDMenuManager.Editor.UI
             AssetDatabase.Refresh();
 
             EditorUtility.DisplayDialog("烘焙成功", $"实体资产已成功生成至工程目录：\n{outputFolder}\n\n包含：\n- FX Controller\n- Expressions Menu\n- Expression Parameters\n- 独立 Animation Clips", "确定");
+        }
+
+        #endregion
+
+        #region Parameter Inspector View
+
+        private void RenderParamInspectorView()
+        {
+            if (paramInspectorViewContainer == null) return;
+            paramInspectorViewContainer.Clear();
+
+            var result = BitBudgetCalculator.Calculate(currentAvatar);
+
+            // 1. Dashboard Card
+            var dashboardCard = new VisualElement();
+            dashboardCard.style.backgroundColor = new Color(0.12f, 0.13f, 0.20f);
+            dashboardCard.style.borderTopLeftRadius = 8;
+            dashboardCard.style.borderTopRightRadius = 8;
+            dashboardCard.style.borderBottomLeftRadius = 8;
+            dashboardCard.style.borderBottomRightRadius = 8;
+            dashboardCard.style.borderTopWidth = 1;
+            dashboardCard.style.borderBottomWidth = 1;
+            dashboardCard.style.borderLeftWidth = 1;
+            dashboardCard.style.borderRightWidth = 1;
+            dashboardCard.style.borderTopColor = new Color(0.22f, 0.25f, 0.38f);
+            dashboardCard.style.borderBottomColor = new Color(0.22f, 0.25f, 0.38f);
+            dashboardCard.style.borderLeftColor = new Color(0.22f, 0.25f, 0.38f);
+            dashboardCard.style.borderRightColor = new Color(0.22f, 0.25f, 0.38f);
+            dashboardCard.style.paddingLeft = 14;
+            dashboardCard.style.paddingRight = 14;
+            dashboardCard.style.paddingTop = 12;
+            dashboardCard.style.paddingBottom = 12;
+            dashboardCard.style.marginBottom = 12;
+
+            var statRow = new VisualElement();
+            statRow.style.flexDirection = FlexDirection.Row;
+            statRow.style.justifyContent = Justify.SpaceBetween;
+            statRow.style.marginBottom = 10;
+
+            CreateParamStatBadge(statRow, "总已用网络预算", $"{result.totalUsedBits} / 256 bits", result.barColor);
+            int remain = Mathf.Max(0, 256 - result.totalUsedBits);
+            CreateParamStatBadge(statRow, "剩余可用预算", $"{remain} bits", result.isExceeded ? new Color(0.95f, 0.3f, 0.3f) : new Color(0.38f, 0.75f, 0.98f));
+            CreateParamStatBadge(statRow, "Avatar 基础占用", $"{result.baseBits} bits", new Color(0.6f, 0.65f, 0.8f));
+            CreateParamStatBadge(statRow, "ND 菜单扩展占用", $"{result.addedBits} bits", new Color(0.75f, 0.55f, 0.95f));
+
+            dashboardCard.Add(statRow);
+
+            var progressBg = new VisualElement();
+            progressBg.style.height = 14;
+            progressBg.style.backgroundColor = new Color(0.08f, 0.09f, 0.14f);
+            progressBg.style.borderTopLeftRadius = 7;
+            progressBg.style.borderTopRightRadius = 7;
+            progressBg.style.borderBottomLeftRadius = 7;
+            progressBg.style.borderBottomRightRadius = 7;
+            progressBg.style.overflow = Overflow.Hidden;
+            progressBg.style.marginBottom = 6;
+
+            var progressBarFill = new VisualElement();
+            progressBarFill.style.height = Length.Percent(100);
+            progressBarFill.style.width = Length.Percent(result.percentage * 100f);
+            progressBarFill.style.backgroundColor = result.barColor;
+            progressBg.Add(progressBarFill);
+            dashboardCard.Add(progressBg);
+
+            var progressText = new Label(result.statusText);
+            progressText.style.fontSize = 11.5f;
+            progressText.style.color = new Color(0.7f, 0.75f, 0.85f);
+            dashboardCard.Add(progressText);
+
+            paramInspectorViewContainer.Add(dashboardCard);
+
+            // 2. Filter & Search Toolbar
+            var filterRow = new VisualElement();
+            filterRow.style.flexDirection = FlexDirection.Row;
+            filterRow.style.justifyContent = Justify.SpaceBetween;
+            filterRow.style.alignItems = Align.Center;
+            filterRow.style.marginBottom = 10;
+
+            var searchField = new TextField { placeholderText = "搜索参数名称 / 所属路径...", value = paramSearchKeyword };
+            searchField.style.width = 280;
+            searchField.RegisterValueChangedCallback(evt =>
+            {
+                paramSearchKeyword = evt.newValue?.Trim().ToLower() ?? "";
+                RenderParamInspectorView();
+            });
+
+            var filterBtnGroup = new VisualElement();
+            filterBtnGroup.style.flexDirection = FlexDirection.Row;
+
+            AddParamFilterBtn(filterBtnGroup, "全部参数", 0);
+            AddParamFilterBtn(filterBtnGroup, "网络同步", 1);
+            AddParamFilterBtn(filterBtnGroup, "基础参数", 2);
+            AddParamFilterBtn(filterBtnGroup, "ND 菜单控制项", 3);
+            AddParamFilterBtn(filterBtnGroup, "优化诊断建议", 4);
+
+            var openStandaloneBtn = new Button(() => NDParameterInspectorWindow.Open(currentAvatar)) { text = "独立视窗打开" };
+            openStandaloneBtn.AddToClassList("preset-btn");
+            openStandaloneBtn.style.marginLeft = 8;
+            filterBtnGroup.Add(openStandaloneBtn);
+
+            filterRow.Add(searchField);
+            filterRow.Add(filterBtnGroup);
+            paramInspectorViewContainer.Add(filterRow);
+
+            // 3. Data Table Card
+            var tableCard = new VisualElement();
+            tableCard.style.flexGrow = 1;
+            tableCard.style.backgroundColor = new Color(0.10f, 0.11f, 0.17f);
+            tableCard.style.borderTopLeftRadius = 6;
+            tableCard.style.borderTopRightRadius = 6;
+            tableCard.style.borderBottomLeftRadius = 6;
+            tableCard.style.borderBottomRightRadius = 6;
+            tableCard.style.borderTopWidth = 1;
+            tableCard.style.borderBottomWidth = 1;
+            tableCard.style.borderLeftWidth = 1;
+            tableCard.style.borderRightWidth = 1;
+            tableCard.style.borderTopColor = new Color(0.20f, 0.22f, 0.34f);
+            tableCard.style.borderBottomColor = new Color(0.20f, 0.22f, 0.34f);
+            tableCard.style.borderLeftColor = new Color(0.20f, 0.22f, 0.34f);
+            tableCard.style.borderRightColor = new Color(0.20f, 0.22f, 0.34f);
+            tableCard.style.overflow = Overflow.Hidden;
+
+            var tableHeader = new VisualElement();
+            tableHeader.style.flexDirection = FlexDirection.Row;
+            tableHeader.style.alignItems = Align.Center;
+            tableHeader.style.backgroundColor = new Color(0.14f, 0.16f, 0.24f);
+            tableHeader.style.height = 32;
+            tableHeader.style.paddingLeft = 10;
+            tableHeader.style.paddingRight = 10;
+            tableHeader.style.borderBottomWidth = 1;
+            tableHeader.style.borderBottomColor = new Color(0.22f, 0.25f, 0.38f);
+
+            CreateParamHeaderCol(tableHeader, "类型 / 消耗", 105);
+            CreateParamHeaderCol(tableHeader, "参数名称 (Parameter Name)", 200);
+            CreateParamHeaderCol(tableHeader, "网络同步", 85);
+            CreateParamHeaderCol(tableHeader, "记忆保存", 75);
+            CreateParamHeaderCol(tableHeader, "默认值", 70);
+            CreateParamHeaderCol(tableHeader, "所属来源 (分类与路径)", 230);
+            CreateParamHeaderCol(tableHeader, "诊断与操作", 120);
+            tableCard.Add(tableHeader);
+
+            var tableScrollView = new ScrollView();
+            tableScrollView.style.flexGrow = 1;
+            tableCard.Add(tableScrollView);
+
+            if (result.parameters != null && result.parameters.Count > 0)
+            {
+                var list = result.parameters.AsEnumerable();
+                switch (paramFilterIndex)
+                {
+                    case 1: list = list.Where(p => p.IsSynced); break;
+                    case 2: list = list.Where(p => p.Category.Contains("基础参数")); break;
+                    case 3: list = list.Where(p => p.Category.Contains("ND 菜单")); break;
+                    case 4: list = list.Where(p => p.IsOptimizable); break;
+                }
+
+                if (!string.IsNullOrEmpty(paramSearchKeyword))
+                {
+                    list = list.Where(p => p.Name.ToLower().Contains(paramSearchKeyword) || p.SourcePath.ToLower().Contains(paramSearchKeyword) || p.Category.ToLower().Contains(paramSearchKeyword));
+                }
+
+                int index = 0;
+                foreach (var p in list)
+                {
+                    var row = new VisualElement();
+                    row.style.flexDirection = FlexDirection.Row;
+                    row.style.alignItems = Align.Center;
+                    row.style.minHeight = 32;
+                    row.style.paddingLeft = 10;
+                    row.style.paddingRight = 10;
+                    row.style.backgroundColor = (index % 2 == 0) ? new Color(0.10f, 0.11f, 0.17f) : new Color(0.12f, 0.13f, 0.20f);
+                    row.style.borderBottomWidth = 1;
+                    row.style.borderBottomColor = new Color(0.16f, 0.18f, 0.27f);
+
+                    var col1 = new VisualElement { style = { width = 105, flexDirection = FlexDirection.Row, alignItems = Align.Center } };
+                    var badge = new Label();
+                    badge.style.fontSize = 11;
+                    badge.style.unityFontStyleAndWeight = FontStyle.Bold;
+                    badge.style.paddingLeft = 6;
+                    badge.style.paddingRight = 6;
+                    badge.style.paddingTop = 2;
+                    badge.style.paddingBottom = 2;
+                    badge.style.borderTopLeftRadius = 4;
+                    badge.style.borderTopRightRadius = 4;
+                    badge.style.borderBottomLeftRadius = 4;
+                    badge.style.borderBottomRightRadius = 4;
+
+                    if (!p.IsSynced)
+                    {
+                        badge.text = "0b 本地";
+                        badge.style.backgroundColor = new Color(0.2f, 0.22f, 0.28f);
+                        badge.style.color = new Color(0.6f, 0.65f, 0.75f);
+                    }
+                    else if (p.ValueType == "Bool")
+                    {
+                        badge.text = "1b Bool";
+                        badge.style.backgroundColor = new Color(0.12f, 0.32f, 0.55f);
+                        badge.style.color = new Color(0.4f, 0.85f, 1.0f);
+                    }
+                    else if (p.ValueType == "Int")
+                    {
+                        badge.text = "8b Int";
+                        badge.style.backgroundColor = new Color(0.35f, 0.15f, 0.55f);
+                        badge.style.color = new Color(0.85f, 0.6f, 1.0f);
+                    }
+                    else
+                    {
+                        badge.text = "8b Float";
+                        badge.style.backgroundColor = new Color(0.55f, 0.3f, 0.1f);
+                        badge.style.color = new Color(1.0f, 0.75f, 0.4f);
+                    }
+                    col1.Add(badge);
+                    row.Add(col1);
+
+                    var col2 = new Label(p.Name)
+                    {
+                        style = { width = 200, fontSize = 12, unityFontStyleAndWeight = FontStyle.Bold, color = new Color(0.9f, 0.93f, 0.98f) }
+                    };
+                    row.Add(col2);
+
+                    var col3 = new Label(p.IsSynced ? "网络同步" : "仅本地")
+                    {
+                        style = { width = 85, fontSize = 11, color = p.IsSynced ? new Color(0.35f, 0.85f, 0.55f) : new Color(0.5f, 0.55f, 0.65f) }
+                    };
+                    row.Add(col3);
+
+                    var col4 = new Label(p.IsSaved ? "记忆保存" : "不保存")
+                    {
+                        style = { width = 75, fontSize = 11, color = p.IsSaved ? new Color(0.7f, 0.75f, 0.9f) : new Color(0.5f, 0.55f, 0.65f) }
+                    };
+                    row.Add(col4);
+
+                    var col5 = new Label(p.DefaultValue)
+                    {
+                        style = { width = 70, fontSize = 11, color = new Color(0.85f, 0.88f, 0.95f) }
+                    };
+                    row.Add(col5);
+
+                    var col6 = new VisualElement { style = { width = 230, flexDirection = FlexDirection.Column, justifyContent = Justify.Center } };
+                    var catLabel = new Label(p.Category) { style = { fontSize = 10, color = new Color(0.5f, 0.55f, 0.7f), marginBottom = 1 } };
+                    var pathLabel = new Label(p.SourcePath) { style = { fontSize = 11, color = new Color(0.75f, 0.8f, 0.9f) } };
+                    col6.Add(catLabel);
+                    col6.Add(pathLabel);
+                    row.Add(col6);
+
+                    var col7 = new VisualElement { style = { width = 120, flexDirection = FlexDirection.Row, alignItems = Align.Center } };
+                    var targetObj = p.SourceComponent ?? (UnityEngine.Object)p.SourceGameObject;
+                    if (targetObj != null)
+                    {
+                        var pingBtn = new Label("定位");
+                        pingBtn.AddToClassList("part-chip-preview");
+                        pingBtn.tooltip = "在 Hierarchy / Project 中高亮定位此组件";
+                        pingBtn.style.paddingLeft = 6;
+                        pingBtn.style.paddingRight = 6;
+                        pingBtn.RegisterCallback<ClickEvent>(_ =>
+                        {
+                            EditorGUIUtility.PingObject(targetObj);
+                            if (p.SourceGameObject != null) Selection.activeGameObject = p.SourceGameObject;
+                        });
+                        col7.Add(pingBtn);
+                    }
+
+                    if (p.SourceGameObject != null)
+                    {
+                        var prevBtn = new Label("预览");
+                        prevBtn.AddToClassList("part-chip-add");
+                        prevBtn.tooltip = "打开 3D 独立窗口查看对应模型";
+                        prevBtn.style.paddingLeft = 6;
+                        prevBtn.style.paddingRight = 6;
+                        prevBtn.RegisterCallback<ClickEvent>(_ => NDItemPreviewWindow.ShowPreview(p.SourceGameObject));
+                        col7.Add(prevBtn);
+                    }
+
+                    if (p.IsOptimizable)
+                    {
+                        var optBadge = new Label("可优化");
+                        optBadge.style.fontSize = 10;
+                        optBadge.style.backgroundColor = new Color(0.55f, 0.4f, 0.05f);
+                        optBadge.style.color = new Color(1.0f, 0.9f, 0.4f);
+                        optBadge.style.paddingLeft = 4;
+                        optBadge.style.paddingRight = 4;
+                        optBadge.style.borderTopLeftRadius = 3;
+                        optBadge.style.borderTopRightRadius = 3;
+                        optBadge.style.borderBottomLeftRadius = 3;
+                        optBadge.style.borderBottomRightRadius = 3;
+                        optBadge.style.marginLeft = 4;
+                        optBadge.tooltip = p.OptimizationTip;
+                        col7.Add(optBadge);
+                    }
+
+                    row.Add(col7);
+                    tableScrollView.Add(row);
+                    index++;
+                }
+            }
+            else
+            {
+                var empty = new Label(currentAvatar == null ? "请先选择目标 Avatar 模型" : "未扫描到任何表达参数");
+                empty.style.paddingTop = 40;
+                empty.style.unityTextAlign = TextAnchor.MiddleCenter;
+                empty.style.color = new Color(0.5f, 0.55f, 0.65f);
+                tableScrollView.Add(empty);
+            }
+
+            paramInspectorViewContainer.Add(tableCard);
+        }
+
+        private Label CreateParamStatBadge(VisualElement parent, string title, string val, Color valColor)
+        {
+            var box = new VisualElement();
+            box.style.alignItems = Align.Center;
+
+            var tLbl = new Label(title);
+            tLbl.style.fontSize = 11;
+            tLbl.style.color = new Color(0.55f, 0.6f, 0.72f);
+            tLbl.style.marginBottom = 2;
+
+            var vLbl = new Label(val);
+            vLbl.style.fontSize = 15;
+            vLbl.style.unityFontStyleAndWeight = FontStyle.Bold;
+            vLbl.style.color = valColor;
+
+            box.Add(tLbl);
+            box.Add(vLbl);
+            parent.Add(box);
+            return vLbl;
+        }
+
+        private void AddParamFilterBtn(VisualElement parent, string text, int filterIdx)
+        {
+            var btn = new Button(() =>
+            {
+                paramFilterIndex = filterIdx;
+                RenderParamInspectorView();
+            }) { text = text };
+            btn.style.height = 24;
+            btn.style.paddingLeft = 8;
+            btn.style.paddingRight = 8;
+            btn.style.fontSize = 11;
+            btn.style.backgroundColor = (paramFilterIndex == filterIdx) ? new Color(0.25f, 0.35f, 0.65f) : new Color(0.16f, 0.18f, 0.27f);
+            btn.style.color = Color.white;
+            btn.style.borderTopLeftRadius = 4;
+            btn.style.borderTopRightRadius = 4;
+            btn.style.borderBottomLeftRadius = 4;
+            btn.style.borderBottomRightRadius = 4;
+            btn.style.marginLeft = 4;
+            parent.Add(btn);
+        }
+
+        private void CreateParamHeaderCol(VisualElement parent, string text, float width)
+        {
+            var lbl = new Label(text);
+            lbl.style.width = width;
+            lbl.style.fontSize = 11.5f;
+            lbl.style.unityFontStyleAndWeight = FontStyle.Bold;
+            lbl.style.color = new Color(0.65f, 0.7f, 0.85f);
+            parent.Add(lbl);
         }
 
         #endregion
