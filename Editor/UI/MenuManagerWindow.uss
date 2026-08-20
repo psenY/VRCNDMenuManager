@@ -311,43 +311,48 @@
 .wz-item-card-header {
     flex-direction: row;
     align-items: center;
-    padding: 8px 10px;
+    padding: 6px 8px;
     background-color: #1a1c2c;
-    min-height: 42px;
+    min-height: 38px;
+    overflow: hidden;
 }
 
 .wz-foldout-btn {
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
     padding: 0;
     margin-right: 4px;
     background-color: transparent;
     border-width: 0;
     color: #818cf8;
     font-size: 12px;
+    flex-shrink: 0;
     cursor: link;
 }
 
 .wz-item-name-field {
     flex-grow: 1;
-    margin-right: 8px;
+    flex-shrink: 1;
+    min-width: 60px;
+    margin-right: 6px;
 }
 
 .wz-item-name-field .unity-text-field__input {
     background-color: #11121c;
     border-color: #2f3450;
     color: #f8fafc;
-    font-size: 12.5px;
+    font-size: 12px;
     -unity-font-style: bold;
 }
 
 .wz-summary-badge {
-    font-size: 11px;
+    font-size: 10.5px;
     color: #94a3b8;
     background-color: #24283f;
-    padding: 2px 8px;
+    padding: 2px 6px;
     border-radius: 10px;
     margin-right: 6px;
+    flex-shrink: 0;
 }
 
 .wz-item-body {
@@ -417,26 +422,52 @@
 .wz-subtoggle-header {
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
     margin-bottom: 6px;
+    overflow: hidden;
 }
 
 .wz-subtoggle-name {
     flex-grow: 1;
-    margin-right: 8px;
+    flex-shrink: 1;
+    min-width: 60px;
+    margin-right: 6px;
+}
+
+.wz-subtoggle-name .unity-text-field__input {
+    background-color: #11121c;
+    border-color: #2f3450;
+    color: #f8fafc;
+    font-size: 11.5px;
+}
+
+.wz-subtoggle-default {
+    flex-shrink: 0;
+    margin-right: 6px;
+    margin-bottom: 0;
+    font-size: 11px;
+}
+
+.wz-subtoggle-default .unity-toggle__label {
+    min-width: 0;
+    margin-right: 4px;
+    font-size: 11px;
+    color: #94a3b8;
 }
 
 .btn-add-subtoggle {
-    height: 26px;
+    height: 24px;
     background-color: #2e1065;
     color: #c4b5fd;
     border-radius: 4px;
     border-width: 1px;
     border-color: #6d28d9;
-    font-size: 11.5px;
+    font-size: 11px;
     -unity-font-style: bold;
     cursor: link;
-    margin-top: 4px;
+    flex-shrink: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding: 0 8px;
 }
 
 .btn-add-subtoggle:hover {

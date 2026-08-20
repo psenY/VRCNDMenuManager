@@ -28,7 +28,7 @@
         </ui:VisualElement>
 
         <!-- VIEW 1: Integrated Quick Wizard View with Real-time Tree Preview -->
-        <ui:TwoPaneSplitView name="wizardViewContainer" fixed-pane-initial-dimension="560" fixed-pane-index="0" orientation="Horizontal" class="wizard-split-container">
+        <ui:TwoPaneSplitView name="wizardViewContainer" fixed-pane-initial-dimension="620" fixed-pane-index="0" orientation="Horizontal" class="wizard-split-container">
             <!-- Left Config Pane: Items & Sub-part Grouping -->
             <ui:ScrollView class="wizard-config-scroll">
                 <!-- Mode Switch Tabs -->

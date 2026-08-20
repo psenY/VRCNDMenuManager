@@ -634,7 +634,7 @@ namespace Custom.NDMenuManager.Editor.UI
 
                 // Summary Badge (Count of main parts & sub toggles)
                 int mainTargetCount = item.mainTargets.Count > 0 ? item.mainTargets.Count : 1;
-                var summaryBadge = new Label($"主控: {mainTargetCount} 件 | 子开关: {item.subToggles.Count} 个");
+                var summaryBadge = new Label($"主控 {mainTargetCount} | 子控 {item.subToggles.Count}");
                 summaryBadge.AddToClassList("wz-summary-badge");
 
                 // Add Sub-toggle button directly on header
@@ -652,7 +652,7 @@ namespace Custom.NDMenuManager.Editor.UI
                     text = "+ 子开关"
                 };
                 addSubBtn.AddToClassList("btn-add-subtoggle");
-                addSubBtn.style.marginRight = 6;
+                addSubBtn.style.marginRight = 4;
 
                 // Delete Button
                 var delBtn = new Button(() =>
@@ -738,8 +738,8 @@ namespace Custom.NDMenuManager.Editor.UI
                                 UpdateProspectiveTreePreview();
                             });
 
-                            var subDefaultToggle = new Toggle("默认开启") { value = subToggle.defaultValue };
-                            subDefaultToggle.style.marginRight = 8;
+                            var subDefaultToggle = new Toggle("默认开") { value = subToggle.defaultValue };
+                            subDefaultToggle.AddToClassList("wz-subtoggle-default");
                             subDefaultToggle.RegisterValueChangedCallback(evt => subToggle.defaultValue = evt.newValue);
 
                             var addTargetToSubBtn = new Button(() =>
