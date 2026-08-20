@@ -714,9 +714,33 @@ namespace Custom.NDMenuManager.Editor.UI
                     // 2. Custom Sub Toggles Section
                     if (item.subToggles.Count > 0)
                     {
-                        var subTitle = new Label("【独立子开关】（支持一个开关同时控制多个散件，如背包、外套、双马尾）：");
+                        var subTitleRow = new VisualElement();
+                        subTitleRow.style.flexDirection = FlexDirection.Row;
+                        subTitleRow.style.alignItems = Align.Center;
+                        subTitleRow.style.justifyContent = Justify.SpaceBetween;
+                        subTitleRow.style.marginBottom = 6;
+                        subTitleRow.style.marginTop = 4;
+
+                        var subTitle = new Label("【独立子开关】（支持一个开关同时控制多个散件，如背包、外套）：");
                         subTitle.AddToClassList("wz-subpart-group-title");
-                        body.Add(subTitle);
+                        subTitle.style.marginBottom = 0;
+                        subTitle.style.marginTop = 0;
+
+                        var clearSubBtn = new Button(() =>
+                        {
+                            item.subToggles.Clear();
+                            UpdateWizardDroppedList();
+                        })
+                        {
+                            text = "清空子开关"
+                        };
+                        clearSubBtn.AddToClassList("preset-btn");
+                        clearSubBtn.style.paddingLeft = 6;
+                        clearSubBtn.style.paddingRight = 6;
+
+                        subTitleRow.Add(subTitle);
+                        subTitleRow.Add(clearSubBtn);
+                        body.Add(subTitleRow);
 
                         for (int s = 0; s < item.subToggles.Count; s++)
                         {
@@ -812,9 +836,49 @@ namespace Custom.NDMenuManager.Editor.UI
                     // 3. Quick Sub-Toggle Creation from Detected Sub-Meshes
                     if (allMeshes.Count > 1)
                     {
-                        var quickSubTitle = new Label("【所有内部子部件】（点击快速以此部件新建独立子开关）：");
+                        var quickSubTitleRow = new VisualElement();
+                        quickSubTitleRow.style.flexDirection = FlexDirection.Row;
+                        quickSubTitleRow.style.alignItems = Align.Center;
+                        quickSubTitleRow.style.justifyContent = Justify.SpaceBetween;
+                        quickSubTitleRow.style.marginBottom = 6;
+                        quickSubTitleRow.style.marginTop = 6;
+
+                        var quickSubTitle = new Label("【所有内部子部件】（可点击单件新建，或一键全建）：");
                         quickSubTitle.AddToClassList("wz-subpart-group-title");
-                        body.Add(quickSubTitle);
+                        quickSubTitle.style.marginBottom = 0;
+                        quickSubTitle.style.marginTop = 0;
+
+                        var genAllSubBtn = new Button(() =>
+                        {
+                            foreach (var meshGo in allMeshes)
+                            {
+                                if (allMeshes.Count > 1 && meshGo == item.gameObject) continue;
+                                if (!item.subToggles.Exists(st => st.targets.Contains(meshGo)))
+                                {
+                                    var newSt = new WizardSubToggle
+                                    {
+                                        toggleName = meshGo.name,
+                                        defaultValue = meshGo.activeSelf
+                                    };
+                                    newSt.targets.Add(meshGo);
+                                    item.subToggles.Add(newSt);
+                                }
+                            }
+                            UpdateWizardDroppedList();
+                        })
+                        {
+                            text = "⚡ 一键生成全部子开关"
+                        };
+                        genAllSubBtn.AddToClassList("btn-add-subtoggle");
+                        genAllSubBtn.style.backgroundColor = new Color(0.2f, 0.45f, 0.85f);
+                        genAllSubBtn.style.borderColor = new Color(0.35f, 0.6f, 0.95f);
+                        genAllSubBtn.style.color = Color.white;
+                        genAllSubBtn.style.paddingLeft = 8;
+                        genAllSubBtn.style.paddingRight = 8;
+
+                        quickSubTitleRow.Add(quickSubTitle);
+                        quickSubTitleRow.Add(genAllSubBtn);
+                        body.Add(quickSubTitleRow);
 
                         var quickSubWrap = new VisualElement();
                         quickSubWrap.AddToClassList("wz-chips-wrap");
