@@ -2481,47 +2481,17 @@ namespace Custom.NDMenuManager.Editor.UI
 
         private void RecalculateBudget()
         {
-            int baseBits = 0;
-            int extensionBits = 0;
-
-            if (currentAvatar != null && currentAvatar.expressionParameters != null)
-            {
-                baseBits = currentAvatar.expressionParameters.CalcTotalCost();
-            }
-
-            foreach (var comp in allComponents)
-            {
-                if (comp is INDMenuItem menuItem)
-                {
-                    extensionBits += menuItem.GetBitCost();
-                }
-            }
-
-            int totalBits = baseBits + extensionBits;
-            int remaining = 256 - totalBits;
+            var result = BitBudgetCalculator.Calculate(currentAvatar);
 
             if (budgetStatusLabel != null)
             {
-                budgetStatusLabel.text = $"{totalBits} / 256 bits (基础 {baseBits}b + 扩展 {extensionBits}b) - 剩余 {remaining} bits";
+                budgetStatusLabel.text = result.statusText;
             }
 
             if (progressFill != null)
             {
-                float percent = Mathf.Clamp01(totalBits / 256f) * 100f;
-                progressFill.style.width = Length.Percent(percent);
-
-                if (totalBits > 256)
-                {
-                    progressFill.style.backgroundColor = new StyleColor(new Color(0.9f, 0.2f, 0.2f));
-                }
-                else if (totalBits > 200)
-                {
-                    progressFill.style.backgroundColor = new StyleColor(new Color(0.95f, 0.65f, 0.15f));
-                }
-                else
-                {
-                    progressFill.style.backgroundColor = new StyleColor(new Color(0.2f, 0.8f, 0.4f));
-                }
+                progressFill.style.width = Length.Percent(result.percentage * 100f);
+                progressFill.style.backgroundColor = result.barColor;
             }
         }
 
