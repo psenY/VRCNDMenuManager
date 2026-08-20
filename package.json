@@ -1,0 +1,21 @@
+{
+  "name": "com.custom.nd-menu-manager",
+  "version": "1.0.0",
+  "displayName": "psenY7 ND Menu Manager",
+  "description": "A modern non-destructive VRChat Expressions Menu & Parameters manager and generator based on NDMF and UI Toolkit.",
+  "unity": "2022.3",
+  "author": {
+    "name": "Antigravity Team"
+  },
+  "dependencies": {
+    "nadena.dev.ndmf": "^1.4.0",
+    "com.vrchat.avatars": "^3.5.0"
+  },
+  "keywords": [
+    "vrchat",
+    "avatar",
+    "ndmf",
+    "menu",
+    "non-destructive"
+  ]
+}

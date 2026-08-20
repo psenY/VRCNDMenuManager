@@ -1,0 +1,61 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <Style src="project://database/Packages/com.custom.nd-menu-manager/Editor/UI/MenuGeneratorWizard.uss?fileID=7433441132597879392&amp;guid=7bca74e2d7870a44cb2996924b17b2b6&amp;type=3#MenuGeneratorWizard" />
+    
+    <ui:VisualElement class="wizard-root">
+        <!-- Header -->
+        <ui:VisualElement class="wizard-header">
+            <ui:Label text="改模菜单一键生成向导" class="wizard-title" />
+            <ui:Label text="把多套衣服或发型直接拖入，自动生成完整的层级、互斥开关与子配件" class="wizard-sub" />
+        </ui:VisualElement>
+
+        <!-- Mode Selector Tabs -->
+        <ui:VisualElement class="tab-row">
+            <ui:Button name="tabExclusive" text="多项互斥切换 (衣服/发型/体型)" class="tab-btn tab-active" />
+            <ui:Button name="tabProps" text="批量独立饰品 (散件道具)" class="tab-btn" />
+        </ui:VisualElement>
+
+        <!-- Settings Body ScrollView -->
+        <ui:ScrollView class="wizard-body">
+            <!-- Target Avatar Field -->
+            <ui:VisualElement class="card-section">
+                <uie:ObjectField name="wizardAvatarSelector" label="目标 Avatar 模型:" class="form-field" />
+                <ui:TextField name="folderNameField" label="主文件夹名称:" value="衣柜" class="form-field" />
+                
+                <!-- Quick Preset Tags -->
+                <ui:VisualElement class="preset-tag-row">
+                    <ui:Label text="快捷预设:" class="preset-label" />
+                    <ui:Button name="presetWardrobe" text="衣柜" class="preset-btn" />
+                    <ui:Button name="presetHair" text="发型" class="preset-btn" />
+                    <ui:Button name="presetBody" text="体型" class="preset-btn" />
+                    <ui:Button name="presetProps" text="饰品" class="preset-btn" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- Drag and Drop Target Area -->
+            <ui:VisualElement class="card-section">
+                <ui:Label text="拖入目标物体列表 (从 Hierarchy 多选拖入此处)：" class="section-label" />
+                <ui:VisualElement name="dropArea" class="drop-zone">
+                    <ui:Label text="[拖拽区域] 从 Hierarchy 选中衣服/发型物体拖入此处" class="drop-hint-text" />
+                </ui:VisualElement>
+
+                <!-- Draggable Object Item List -->
+                <ui:ScrollView name="droppedItemsList" class="item-list-container">
+                    <!-- Populated dynamically via C# -->
+                </ui:ScrollView>
+            </ui:VisualElement>
+
+            <!-- Options Card -->
+            <ui:VisualElement name="outfitOptionsCard" class="card-section">
+                <ui:Toggle name="autoSubToggles" label="自动扫描子物体（外套/发饰/配件等）生成细节小开关" value="true" class="form-toggle" />
+                <ui:Toggle name="autoMutualExclusive" label="自动配置互斥联动（换一套自动脱其他套）" value="true" class="form-toggle" />
+                <ui:Toggle name="preventNudityToggle" label="开启防脱光保护 (只能在各项目间切换，无法直接关闭变裸)" value="true" class="form-toggle" />
+                <ui:Toggle name="autoThumbnailToggle" label="自动生成物体 3D 缩略图图标 (保存在插件目录)" value="true" class="form-toggle" />
+            </ui:VisualElement>
+        </ui:ScrollView>
+
+        <!-- Footer Action -->
+        <ui:VisualElement class="wizard-footer">
+            <ui:Button name="generateBtn" text="一键自动生成菜单结构" class="btn-generate" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

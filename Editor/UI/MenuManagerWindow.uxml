@@ -1,0 +1,156 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <Style src="project://database/Packages/com.custom.nd-menu-manager/Editor/UI/MenuManagerWindow.uss?fileID=7433441132597879392&amp;guid=7bca74e2d7870a44cb2996924b17b2b6&amp;type=3#MenuManagerWindow" />
+    
+    <ui:VisualElement class="root-view">
+        <!-- Top App Bar -->
+        <ui:VisualElement class="app-bar">
+            <ui:VisualElement class="title-group">
+                <ui:Label text="psenY7 ND Menu Manager" class="app-title" />
+            </ui:VisualElement>
+
+            <!-- Mode Switch Tabs in Header -->
+            <ui:VisualElement class="view-switch-group">
+                <ui:Button name="viewWizardBtn" text="一键向导生成" class="view-switch-btn view-switch-active" />
+                <ui:Button name="viewManagerBtn" text="菜单层级管理" class="view-switch-btn" />
+            </ui:VisualElement>
+
+            <!-- Avatar Selector -->
+            <ui:VisualElement class="avatar-group">
+                <uie:ObjectField name="avatarSelector" label="目标 Avatar:" class="avatar-input" />
+            </ui:VisualElement>
+
+            <!-- Global Action Buttons -->
+            <ui:VisualElement class="action-group">
+                <ui:Button name="playModeBtn" text="运行预览" class="btn btn-green" tooltip="进入 Play Mode 配合 Gesture Manager 测试" />
+                <ui:Button name="manualBakeBtn" text="烘焙资产" class="btn btn-purple" tooltip="一键导出为实体 Assets 文件" />
+                <ui:Button name="refreshBtn" text="刷新" class="btn btn-dark" tooltip="重新扫描并刷新场景" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- VIEW 1: Integrated Quick Wizard View -->
+        <ui:VisualElement name="wizardViewContainer" class="wizard-integrated-container">
+            <ui:ScrollView class="wizard-integrated-scroll">
+                <!-- Mode Switch Tabs -->
+                <ui:VisualElement class="tab-row-integrated">
+                    <ui:Button name="wzTabExclusive" text="多项互斥切换 (衣服 / 发型 / 体型)" class="tab-btn tab-active" />
+                    <ui:Button name="wzTabProps" text="批量独立饰品 (散件道具)" class="tab-btn" />
+                </ui:VisualElement>
+
+                <!-- Folder & Presets -->
+                <ui:VisualElement class="card-section">
+                    <ui:TextField name="wzFolderNameField" label="主文件夹名称:" value="衣柜" class="form-field" />
+                    <ui:VisualElement class="preset-tag-row">
+                        <ui:Label text="快捷预设:" class="preset-label" />
+                        <ui:Button name="wzPresetWardrobe" text="衣柜" class="preset-btn" />
+                        <ui:Button name="wzPresetHair" text="发型" class="preset-btn" />
+                        <ui:Button name="wzPresetBody" text="体型" class="preset-btn" />
+                        <ui:Button name="wzPresetProps" text="饰品" class="preset-btn" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- Drag and Drop Target Area -->
+                <ui:VisualElement class="card-section">
+                    <ui:Label text="拖入目标物体列表 (从 Hierarchy 多选拖入下方区域)：" class="section-label" />
+                    <ui:VisualElement name="wzDropArea" class="drop-zone">
+                        <ui:Label text="[拖拽区域] 从 Hierarchy 选中衣服/发型/饰品物体拖入此处" class="drop-hint-text" />
+                    </ui:VisualElement>
+
+                    <!-- Draggable Object Item List -->
+                    <ui:ScrollView name="wzDroppedItemsList" class="item-list-container">
+                        <!-- Populated dynamically via C# -->
+                    </ui:ScrollView>
+                </ui:VisualElement>
+
+                <!-- Options Card -->
+                <ui:VisualElement name="wzOutfitOptionsCard" class="card-section">
+                    <ui:Toggle name="wzAutoSubToggles" label="自动扫描子物体（外套/发饰/配件等）生成细节小开关" value="true" class="form-toggle" />
+                    <ui:Toggle name="wzAutoMutualExclusive" label="自动配置互斥联动（换一套自动脱其他套）" value="true" class="form-toggle" />
+                    <ui:Toggle name="wzPreventNudityToggle" label="开启防脱光保护 (只能在各项目间切换，无法直接关闭变裸)" value="true" class="form-toggle" />
+                    <ui:Toggle name="wzAutoThumbnailToggle" label="自动生成物体 3D 缩略图图标 (保存在插件目录)" value="true" class="form-toggle" />
+                </ui:VisualElement>
+
+                <!-- Generate Button -->
+                <ui:Button name="wzGenerateBtn" text="一键自动生成完整菜单体系" class="btn-generate-integrated" />
+            </ui:ScrollView>
+        </ui:VisualElement>
+
+        <!-- VIEW 2: Menu Manager Hierarchy & Inspector Split View -->
+        <ui:TwoPaneSplitView name="managerViewContainer" fixed-pane-initial-dimension="530" fixed-pane-index="0" orientation="Horizontal" class="main-split" style="display: none;">
+            <!-- Left Sidebar (Hierarchy Explorer) -->
+            <ui:VisualElement class="sidebar">
+                <!-- Sidebar Top Bar -->
+                <ui:VisualElement class="sidebar-top">
+                    <ui:VisualElement class="sidebar-title-row">
+                        <ui:Label text="菜单层级树" class="sidebar-heading" />
+                        <ui:Label name="itemCountLabel" text="0 项" class="badge-pill" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="tree-tools-row">
+                        <ui:Button name="expandAllBtn" text="全部展开" class="tree-tool-btn" tooltip="展开所有文件夹与层级" />
+                        <ui:Button name="collapseAllBtn" text="全部收起" class="tree-tool-btn" tooltip="收起所有文件夹" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- Sleek 1-Row Add Actions Pill Strip -->
+                <ui:VisualElement class="action-pill-strip">
+                    <ui:Button name="addToggleBtn" text="+ 开关" class="pill-btn pill-btn-blue" tooltip="为选中的衣服添加开关组件" />
+                    <ui:Button name="addGroupBtn" text="+ 互斥组" class="pill-btn pill-btn-purple" tooltip="为选中的物体添加单选互斥组" />
+                    <ui:Button name="addRadialBtn" text="+ 滑条" class="pill-btn pill-btn-amber" tooltip="为选中的属性添加 0~100% 滑条" />
+                    <ui:Button name="addSubMenuBtn" text="+ 文件夹" class="pill-btn pill-btn-teal" tooltip="新建一个子菜单分类文件夹" />
+                </ui:VisualElement>
+
+                <!-- Empty State Guide (When no items exist) -->
+                <ui:VisualElement name="leftEmptyContainer" class="guide-box">
+                    <ui:Label text="尚未配置任何菜单项" class="guide-title" />
+                    <ui:Label text="1. 点击上方【一键向导生成】批量构建&#10;2. 或在 Hierarchy 选中物体后点击上方快捷按钮" class="guide-desc" />
+                </ui:VisualElement>
+
+                <!-- Modern Tree View with fixed item height to prevent overlapping -->
+                <ui:TreeView name="menuItemTree" fixed-item-height="44" class="tree-list" show-foldout-header="false" reorderable="true" style="display: none;" />
+            </ui:VisualElement>
+
+            <!-- Right Detail Panel (Full Custom Inspector Cards) -->
+            <ui:ScrollView name="inspectorScroll" class="detail-container">
+                <!-- Empty Placeholder (When nothing selected) -->
+                <ui:VisualElement name="emptyStateContainer" class="detail-placeholder">
+                    <ui:Label text="请在左侧层级树中选择一个条目以编辑属性" class="placeholder-title" />
+                    <ui:Label text="或点击下方快捷卡片立即在当前 Avatar 上创建新的菜单组件：" class="placeholder-sub" />
+                    
+                    <ui:VisualElement class="quick-create-grid">
+                        <ui:Button name="quickAddToggleBtn" class="quick-card quick-card-blue">
+                            <ui:Label text="+ 衣服/饰品独立开关" class="quick-card-title" />
+                            <ui:Label text="创建单个物品开/关切换，支持 BlendShape 及材质联动" class="quick-card-desc" />
+                        </ui:Button>
+                        <ui:Button name="quickAddGroupBtn" class="quick-card quick-card-purple">
+                            <ui:Label text="+ 多套装/发型互斥组" class="quick-card-title" />
+                            <ui:Label text="创建单选互斥项，切换一套自动隐藏其他套" class="quick-card-desc" />
+                        </ui:Button>
+                        <ui:Button name="quickAddRadialBtn" class="quick-card quick-card-amber">
+                            <ui:Label text="+ 0~100% 连续调节滑条" class="quick-card-title" />
+                            <ui:Label text="通过径向轮盘调节胸围、体型或材质浮点参数" class="quick-card-desc" />
+                        </ui:Button>
+                        <ui:Button name="quickAddSubMenuBtn" class="quick-card quick-card-teal">
+                            <ui:Label text="+ 分类子菜单文件夹" class="quick-card-title" />
+                            <ui:Label text="创建子文件夹分类组织衣柜、发型、饰品及表情" class="quick-card-desc" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                
+                <!-- Active Inspector Panel -->
+                <ui:VisualElement name="inspectorContainer" class="inspector-card-wrapper" style="display: none;">
+                    <!-- Populated dynamically via C# -->
+                </ui:VisualElement>
+            </ui:ScrollView>
+        </ui:TwoPaneSplitView>
+
+        <!-- Footer Budget Bar -->
+        <ui:VisualElement class="footer">
+            <ui:VisualElement class="budget-meta">
+                <ui:Label text="Avatar 参数同步预算 (256-Bit Budget)" class="budget-title" />
+                <ui:Label name="budgetStatusLabel" text="0 / 256 bits" class="budget-info" />
+            </ui:VisualElement>
+            <ui:VisualElement class="budget-track">
+                <ui:VisualElement name="progressFill" class="budget-fill" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
