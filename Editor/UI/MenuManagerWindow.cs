@@ -498,6 +498,7 @@ namespace Custom.NDMenuManager.Editor.UI
             {
                 DragAndDrop.AcceptDrag();
 
+                var droppedGos = new List<GameObject>();
                 foreach (var obj in DragAndDrop.objectReferences)
                 {
                     if (obj is GameObject go)
@@ -511,9 +512,40 @@ namespace Custom.NDMenuManager.Editor.UI
                                 if (avatarField != null) avatarField.SetValueWithoutNotify(desc.gameObject);
                             }
                         }
-
-                        AddWizardItem(go);
+                        if (!droppedGos.Contains(go)) droppedGos.Add(go);
                     }
+                }
+
+                // If user dragged a single top-level category container (e.g. "头发" or "衣服" folder with multiple children)
+                if (droppedGos.Count == 1)
+                {
+                    var singleGo = droppedGos[0];
+                    if (!IsValidSubMeshItem(singleGo.transform) && singleGo.transform.childCount > 1)
+                    {
+                        droppedGos.Clear();
+                        foreach (Transform child in singleGo.transform)
+                        {
+                            droppedGos.Add(child.gameObject);
+                        }
+                    }
+                }
+
+                // Filter out any child GameObjects whose parent/ancestor is also in the dragged list or already in wizardItems
+                var filteredGos = new List<GameObject>();
+                foreach (var go in droppedGos)
+                {
+                    bool hasParentInDrag = droppedGos.Exists(other => other != go && go.transform.IsChildOf(other.transform));
+                    bool hasParentInWizard = wizardItems.Exists(w => w.gameObject != null && w.gameObject != go && go.transform.IsChildOf(w.gameObject.transform));
+
+                    if (!hasParentInDrag && !hasParentInWizard)
+                    {
+                        filteredGos.Add(go);
+                    }
+                }
+
+                foreach (var go in filteredGos)
+                {
+                    AddWizardItem(go);
                 }
 
                 UpdateWizardDroppedList();
