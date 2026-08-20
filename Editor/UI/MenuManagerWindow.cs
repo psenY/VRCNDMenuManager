@@ -901,12 +901,7 @@ namespace Custom.NDMenuManager.Editor.UI
                         {
                             text = "⚡ 一键生成全部子开关"
                         };
-                        genAllSubBtn.AddToClassList("btn-add-subtoggle");
-                        genAllSubBtn.style.backgroundColor = new Color(0.2f, 0.45f, 0.85f);
-                        genAllSubBtn.style.borderColor = new Color(0.35f, 0.6f, 0.95f);
-                        genAllSubBtn.style.color = Color.white;
-                        genAllSubBtn.style.paddingLeft = 8;
-                        genAllSubBtn.style.paddingRight = 8;
+                        genAllSubBtn.AddToClassList("btn-gen-all-subtoggles");
 
                         quickSubTitleRow.Add(quickSubTitle);
                         quickSubTitleRow.Add(genAllSubBtn);

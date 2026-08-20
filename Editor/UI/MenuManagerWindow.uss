@@ -475,6 +475,27 @@
     color: #ffffff;
 }
 
+.btn-gen-all-subtoggles {
+    height: 24px;
+    background-color: #1d4ed8;
+    color: #ffffff;
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: #3b82f6;
+    font-size: 11px;
+    -unity-font-style: bold;
+    cursor: link;
+    flex-shrink: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding: 0 8px;
+}
+
+.btn-gen-all-subtoggles:hover {
+    background-color: #2563eb;
+    color: #ffffff;
+}
+
 /* Right Preview Pane */
 .preview-header-card {
     background-color: #151724;
