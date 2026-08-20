@@ -89,7 +89,7 @@ namespace Custom.NDMenuManager.Editor.UI
                     string path = go != null ? GetHierarchyPath(go) : descriptor.gameObject.name;
 
                     string valType = "Bool";
-                    string defVal = item.DefaultValue.ToString();
+                    string defVal = "-";
                     bool optimizable = false;
                     string optTip = "";
 
@@ -106,6 +106,12 @@ namespace Custom.NDMenuManager.Editor.UI
                     else if (item is NDRadialPuppet)
                     {
                         valType = "Float";
+                        defVal = "0.0";
+                    }
+                    else if (item is NDToggleGroup group)
+                    {
+                        valType = "Int";
+                        defVal = group.DefaultIndex.ToString();
                     }
 
                     if (!parameterMap.ContainsKey(pName))

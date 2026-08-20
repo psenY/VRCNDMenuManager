@@ -200,7 +200,7 @@ namespace Custom.NDMenuManager.Editor.UI
             filterRow.style.alignItems = Align.Center;
             filterRow.style.marginBottom = 10;
 
-            searchField = new TextField { placeholderText = "搜索参数名称 / 所属路径..." };
+            searchField = new TextField("搜索参数:");
             searchField.style.width = 280;
             searchField.RegisterValueChangedCallback(evt =>
             {
