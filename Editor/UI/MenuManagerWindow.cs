@@ -785,7 +785,7 @@ namespace Custom.NDMenuManager.Editor.UI
                         foreach (var targetGo in item.mainTargets.ToArray())
                         {
                             if (targetGo == null) continue;
-                            var chip = CreatePartChip(targetGo.name, "part-chip-main", () =>
+                            var chip = CreatePartChip(targetGo, "part-chip-main", () =>
                             {
                                 item.mainTargets.Remove(targetGo);
                                 UpdateWizardDroppedList();
@@ -903,7 +903,7 @@ namespace Custom.NDMenuManager.Editor.UI
                                 foreach (var targetGo in subToggle.targets.ToArray())
                                 {
                                     if (targetGo == null) continue;
-                                    var chip = CreatePartChip(targetGo.name, "part-chip-sub", () =>
+                                    var chip = CreatePartChip(targetGo, "part-chip-sub", () =>
                                     {
                                         subToggle.targets.Remove(targetGo);
                                         UpdateWizardDroppedList();
@@ -920,7 +920,7 @@ namespace Custom.NDMenuManager.Editor.UI
                     // 3. Quick Sub-Toggle Creation from Detected Sub-Meshes
                     if (allMeshes.Count > 1)
                     {
-                        var quickSubTitle = new Label("【所有内部子部件】（点击单件快速创建独立开关）：");
+                        var quickSubTitle = new Label("【所有内部子部件】（点击单件高亮定位，或点击预览 3D / 建开关）：");
                         quickSubTitle.AddToClassList("wz-subpart-group-title");
                         body.Add(quickSubTitle);
 
@@ -930,7 +930,39 @@ namespace Custom.NDMenuManager.Editor.UI
                         foreach (var meshGo in allMeshes)
                         {
                             var targetMesh = meshGo;
-                            var btn = new Button(() =>
+
+                            var partBox = new VisualElement();
+                            partBox.style.flexDirection = FlexDirection.Row;
+                            partBox.style.alignItems = Align.Center;
+                            partBox.AddToClassList("preset-btn");
+                            partBox.style.paddingLeft = 8;
+                            partBox.style.paddingRight = 6;
+                            partBox.style.marginBottom = 4;
+
+                            var pingLabel = new Label(targetMesh.name);
+                            pingLabel.style.fontSize = 11.5f;
+                            pingLabel.style.color = new Color(0.9f, 0.92f, 0.98f);
+                            pingLabel.style.marginRight = 6;
+                            pingLabel.tooltip = "单击在 Hierarchy 中高亮定位，双击查看 3D 预览";
+                            pingLabel.RegisterCallback<ClickEvent>(evt =>
+                            {
+                                EditorGUIUtility.PingObject(targetMesh);
+                                Selection.activeGameObject = targetMesh;
+                                if (evt.clickCount >= 2)
+                                {
+                                    NDItemPreviewWindow.ShowPreview(targetMesh);
+                                }
+                            });
+
+                            var prevBtn = new Label("预览");
+                            prevBtn.AddToClassList("part-chip-preview");
+                            prevBtn.tooltip = "打开独立窗口查看 3D 渲染与网格数据";
+                            prevBtn.RegisterCallback<ClickEvent>(_ => NDItemPreviewWindow.ShowPreview(targetMesh));
+
+                            var addBtn = new Label("+ 建开关");
+                            addBtn.AddToClassList("part-chip-add");
+                            addBtn.tooltip = "以此散件建立独立子开关";
+                            addBtn.RegisterCallback<ClickEvent>(_ =>
                             {
                                 var newSt = new WizardSubToggle
                                 {
@@ -940,13 +972,12 @@ namespace Custom.NDMenuManager.Editor.UI
                                 newSt.targets.Add(targetMesh);
                                 item.subToggles.Add(newSt);
                                 UpdateWizardDroppedList();
-                            })
-                            {
-                                text = $"+ 新建【{targetMesh.name}】开关"
-                            };
-                            btn.AddToClassList("preset-btn");
-                            btn.style.marginBottom = 4;
-                            quickSubWrap.Add(btn);
+                            });
+
+                            partBox.Add(pingLabel);
+                            partBox.Add(prevBtn);
+                            partBox.Add(addBtn);
+                            quickSubWrap.Add(partBox);
                         }
                         body.Add(quickSubWrap);
                     }
@@ -960,20 +991,47 @@ namespace Custom.NDMenuManager.Editor.UI
             UpdateProspectiveTreePreview();
         }
 
-        private VisualElement CreatePartChip(string name, string chipClass, Action onRemove)
+        private VisualElement CreatePartChip(GameObject targetGo, string chipClass, Action onRemove)
         {
             var chip = new VisualElement();
             chip.AddToClassList("part-chip");
             chip.AddToClassList(chipClass);
 
+            string name = targetGo != null ? targetGo.name : "未知物体";
             var label = new Label(name);
             label.AddToClassList("part-chip-text");
+            label.tooltip = "单击在 Hierarchy 中高亮定位，双击打开 3D 预览窗口";
+            label.RegisterCallback<ClickEvent>(evt =>
+            {
+                if (targetGo != null)
+                {
+                    EditorGUIUtility.PingObject(targetGo);
+                    Selection.activeGameObject = targetGo;
+                    if (evt.clickCount >= 2)
+                    {
+                        NDItemPreviewWindow.ShowPreview(targetGo);
+                    }
+                }
+            });
+
+            var prevBtn = new Label("预览");
+            prevBtn.AddToClassList("part-chip-preview");
+            prevBtn.tooltip = "打开独立窗口查看 3D 模型与网格信息";
+            prevBtn.RegisterCallback<ClickEvent>(_ =>
+            {
+                if (targetGo != null)
+                {
+                    NDItemPreviewWindow.ShowPreview(targetGo);
+                }
+            });
 
             var delBtn = new Label("x");
             delBtn.AddToClassList("part-chip-del");
+            delBtn.tooltip = "从本开关受控列表中移除";
             delBtn.RegisterCallback<ClickEvent>(_ => onRemove?.Invoke());
 
             chip.Add(label);
+            chip.Add(prevBtn);
             chip.Add(delBtn);
             return chip;
         }
