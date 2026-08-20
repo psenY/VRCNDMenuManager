@@ -68,7 +68,6 @@
 
                 <!-- Options Card -->
                 <ui:VisualElement name="wzOutfitOptionsCard" class="card-section">
-                    <ui:Toggle name="wzAutoSubToggles" label="自动扫描子部件并尝试聚类为配件小开关" value="true" class="form-toggle" />
                     <ui:Toggle name="wzAutoMutualExclusive" label="自动配置互斥联动（换一套自动脱其他套）" value="true" class="form-toggle" />
                     <ui:Toggle name="wzPreventNudityToggle" label="开启防脱光保护 (只能在各项目间切换，无法直接关闭变裸)" value="true" class="form-toggle" />
                     <ui:Toggle name="wzAutoThumbnailToggle" label="自动生成物体 3D 缩略图图标 (保存在插件目录)" value="true" class="form-toggle" />

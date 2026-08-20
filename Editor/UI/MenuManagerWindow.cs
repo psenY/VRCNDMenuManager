@@ -533,51 +533,14 @@ namespace Custom.NDMenuManager.Editor.UI
 
             var meshObjects = GetMeshGameObjects(go);
 
-            if (meshObjects.Count <= 1)
+            // Always add all mesh objects to mainTargets by default so the main switch controls all components
+            foreach (var obj in meshObjects)
+            {
+                if (!item.mainTargets.Contains(obj)) item.mainTargets.Add(obj);
+            }
+            if (!item.mainTargets.Contains(go))
             {
                 item.mainTargets.Add(go);
-            }
-            else
-            {
-                bool autoSub = wzAutoSubToggles == null || wzAutoSubToggles.value;
-                if (autoSub)
-                {
-                    var assignedSet = new HashSet<GameObject>();
-                    var clusters = ClusterSubMeshObjects(meshObjects);
-
-                    foreach (var cluster in clusters)
-                    {
-                        if (cluster.isAccessory && cluster.objects.Count > 0)
-                        {
-                            var subToggle = new WizardSubToggle
-                            {
-                                toggleName = cluster.clusterName,
-                                defaultValue = cluster.objects.Exists(o => o.activeSelf)
-                            };
-                            subToggle.targets.AddRange(cluster.objects);
-                            item.subToggles.Add(subToggle);
-                            foreach (var o in cluster.objects) assignedSet.Add(o);
-                        }
-                    }
-
-                    // Remaining meshes go to mainTargets
-                    foreach (var obj in meshObjects)
-                    {
-                        if (!assignedSet.Contains(obj))
-                        {
-                            item.mainTargets.Add(obj);
-                        }
-                    }
-
-                    if (item.mainTargets.Count == 0 && meshObjects.Count > 0)
-                    {
-                        item.mainTargets.Add(meshObjects[0]);
-                    }
-                }
-                else
-                {
-                    item.mainTargets.AddRange(meshObjects);
-                }
             }
 
             wizardItems.Add(item);
@@ -598,61 +561,6 @@ namespace Custom.NDMenuManager.Editor.UI
             }
             if (list.Count == 0) list.Add(root);
             return list;
-        }
-
-        private class MeshCluster
-        {
-            public string clusterName;
-            public bool isAccessory;
-            public List<GameObject> objects = new List<GameObject>();
-        }
-
-        private List<MeshCluster> ClusterSubMeshObjects(List<GameObject> meshObjects)
-        {
-            var result = new List<MeshCluster>();
-            string[] accessoryKeywords = { "bag", "包", "jacket", "coat", "外套", "ribbon", "蝴蝶结", "发带", "tail", "马尾", "twintail", "双马尾", "glasses", "眼镜", "hat", "cap", "帽子", "shoes", "鞋", "socks", "袜", "glove", "手套", "weapon", "武器", "ear", "耳朵", "acc", "饰品", "belt", "腰带", "horn", "角", "wing", "翅膀" };
-
-            var groupedDict = new Dictionary<string, List<GameObject>>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var obj in meshObjects)
-            {
-                string nameLower = obj.name.ToLower();
-                string matchedKey = null;
-
-                foreach (var kw in accessoryKeywords)
-                {
-                    if (nameLower.Contains(kw.ToLower()))
-                    {
-                        matchedKey = kw;
-                        break;
-                    }
-                }
-
-                if (matchedKey != null)
-                {
-                    string cleanName = NormalizeClusterName(obj.name, matchedKey);
-                    if (!groupedDict.ContainsKey(cleanName)) groupedDict[cleanName] = new List<GameObject>();
-                    groupedDict[cleanName].Add(obj);
-                }
-            }
-
-            foreach (var kvp in groupedDict)
-            {
-                result.Add(new MeshCluster
-                {
-                    clusterName = kvp.Key,
-                    isAccessory = true,
-                    objects = kvp.Value
-                });
-            }
-
-            return result;
-        }
-
-        private string NormalizeClusterName(string objName, string keyword)
-        {
-            string baseName = System.Text.RegularExpressions.Regex.Replace(objName, @"[_\-\s]*(L|R|left|right|\d+)$", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
-            return string.IsNullOrEmpty(baseName) ? objName : baseName;
         }
 
         private void UpdateWizardDroppedList()
@@ -834,6 +742,30 @@ namespace Custom.NDMenuManager.Editor.UI
                             subDefaultToggle.style.marginRight = 8;
                             subDefaultToggle.RegisterValueChangedCallback(evt => subToggle.defaultValue = evt.newValue);
 
+                            var addTargetToSubBtn = new Button(() =>
+                            {
+                                var menu = new GenericMenu();
+                                foreach (var meshGo in allMeshes)
+                                {
+                                    var targetMesh = meshGo;
+                                    bool isAlreadyIn = subToggle.targets.Contains(targetMesh);
+                                    menu.AddItem(new GUIContent($"{targetMesh.name}"), isAlreadyIn, () =>
+                                    {
+                                        if (isAlreadyIn)
+                                            subToggle.targets.Remove(targetMesh);
+                                        else
+                                            subToggle.targets.Add(targetMesh);
+                                        UpdateWizardDroppedList();
+                                    });
+                                }
+                                menu.ShowAsContext();
+                            })
+                            {
+                                text = "+ 关联散件"
+                            };
+                            addTargetToSubBtn.AddToClassList("preset-btn");
+                            addTargetToSubBtn.style.marginRight = 6;
+
                             var delSubBtn = new Button(() =>
                             {
                                 item.subToggles.RemoveAt(subIndex);
@@ -843,6 +775,7 @@ namespace Custom.NDMenuManager.Editor.UI
 
                             subHeader.Add(subNameInput);
                             subHeader.Add(subDefaultToggle);
+                            subHeader.Add(addTargetToSubBtn);
                             subHeader.Add(delSubBtn);
                             subBox.Add(subHeader);
 
@@ -852,7 +785,7 @@ namespace Custom.NDMenuManager.Editor.UI
 
                             if (subToggle.targets.Count == 0)
                             {
-                                var tip = new Label("(尚未分配控制散件，请从下方待分配散件中加入)");
+                                var tip = new Label("(点击上方 [+ 关联散件] 勾选该开关要控制的一个或多个物体)");
                                 tip.style.fontSize = 11;
                                 tip.style.color = new Color(0.5f, 0.5f, 0.6f);
                                 subChipsWrap.Add(tip);
@@ -876,67 +809,38 @@ namespace Custom.NDMenuManager.Editor.UI
                         }
                     }
 
-                    // 3. Available / Unassigned Mesh Objects
-                    var assignedSet = new HashSet<GameObject>(item.mainTargets);
-                    foreach (var st in item.subToggles)
+                    // 3. Quick Sub-Toggle Creation from Detected Sub-Meshes
+                    if (allMeshes.Count > 1)
                     {
-                        foreach (var t in st.targets) assignedSet.Add(t);
-                    }
+                        var quickSubTitle = new Label("【所有内部子部件】（点击快速以此部件新建独立子开关）：");
+                        quickSubTitle.AddToClassList("wz-subpart-group-title");
+                        body.Add(quickSubTitle);
 
-                    var unassignedList = allMeshes.Where(m => !assignedSet.Contains(m)).ToList();
-                    if (unassignedList.Count > 0)
-                    {
-                        var unassignedTitle = new Label("【未分配/待添加散件】（点击快速归入主开关或子开关）：");
-                        unassignedTitle.AddToClassList("wz-subpart-group-title");
-                        body.Add(unassignedTitle);
+                        var quickSubWrap = new VisualElement();
+                        quickSubWrap.AddToClassList("wz-chips-wrap");
 
-                        var unassignedWrap = new VisualElement();
-                        unassignedWrap.AddToClassList("wz-chips-wrap");
-
-                        foreach (var unassignedGo in unassignedList)
+                        foreach (var meshGo in allMeshes)
                         {
-                            var unassignedItem = unassignedGo;
+                            var targetMesh = meshGo;
                             var btn = new Button(() =>
                             {
-                                var menu = new GenericMenu();
-                                menu.AddItem(new GUIContent("归入【主换装开关】"), false, () =>
+                                var newSt = new WizardSubToggle
                                 {
-                                    item.mainTargets.Add(unassignedItem);
-                                    UpdateWizardDroppedList();
-                                });
-
-                                foreach (var st in item.subToggles)
-                                {
-                                    var targetSt = st;
-                                    menu.AddItem(new GUIContent($"归入子开关【{targetSt.toggleName}】"), false, () =>
-                                    {
-                                        targetSt.targets.Add(unassignedItem);
-                                        UpdateWizardDroppedList();
-                                    });
-                                }
-
-                                menu.AddItem(new GUIContent("以此散件新建【独立子开关】"), false, () =>
-                                {
-                                    var newSt = new WizardSubToggle
-                                    {
-                                        toggleName = unassignedItem.name,
-                                        defaultValue = unassignedItem.activeSelf
-                                    };
-                                    newSt.targets.Add(unassignedItem);
-                                    item.subToggles.Add(newSt);
-                                    UpdateWizardDroppedList();
-                                });
-
-                                menu.ShowAsContext();
+                                    toggleName = targetMesh.name,
+                                    defaultValue = targetMesh.activeSelf
+                                };
+                                newSt.targets.Add(targetMesh);
+                                item.subToggles.Add(newSt);
+                                UpdateWizardDroppedList();
                             })
                             {
-                                text = $"+ {unassignedItem.name}"
+                                text = $"+ 新建【{targetMesh.name}】开关"
                             };
                             btn.AddToClassList("preset-btn");
                             btn.style.marginBottom = 4;
-                            unassignedWrap.Add(btn);
+                            quickSubWrap.Add(btn);
                         }
-                        body.Add(unassignedWrap);
+                        body.Add(quickSubWrap);
                     }
 
                     card.Add(body);
