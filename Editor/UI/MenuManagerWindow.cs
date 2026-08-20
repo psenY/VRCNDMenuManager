@@ -731,7 +731,7 @@ namespace Custom.NDMenuManager.Editor.UI
                     UpdateWizardDroppedList();
                 })
                 {
-                    text = "⚡ 全建子开关",
+                    text = "全建子开关",
                     tooltip = "一键为该物品下的所有内部散件各建立一个独立子开关"
                 };
                 genAllSubHeaderBtn.AddToClassList("btn-gen-all-subtoggles");
@@ -920,44 +920,9 @@ namespace Custom.NDMenuManager.Editor.UI
                     // 3. Quick Sub-Toggle Creation from Detected Sub-Meshes
                     if (allMeshes.Count > 1)
                     {
-                        var quickSubTitleRow = new VisualElement();
-                        quickSubTitleRow.style.flexDirection = FlexDirection.Row;
-                        quickSubTitleRow.style.alignItems = Align.Center;
-                        quickSubTitleRow.style.justifyContent = Justify.SpaceBetween;
-                        quickSubTitleRow.style.marginBottom = 6;
-                        quickSubTitleRow.style.marginTop = 6;
-
-                        var quickSubTitle = new Label("【所有内部子部件】（可点击单件新建，或一键全建）：");
+                        var quickSubTitle = new Label("【所有内部子部件】（点击单件快速创建独立开关）：");
                         quickSubTitle.AddToClassList("wz-subpart-group-title");
-                        quickSubTitle.style.marginBottom = 0;
-                        quickSubTitle.style.marginTop = 0;
-
-                        var genAllSubBtn = new Button(() =>
-                        {
-                            foreach (var meshGo in allMeshes)
-                            {
-                                if (allMeshes.Count > 1 && meshGo == item.gameObject) continue;
-                                if (!item.subToggles.Exists(st => st.targets.Contains(meshGo)))
-                                {
-                                    var newSt = new WizardSubToggle
-                                    {
-                                        toggleName = meshGo.name,
-                                        defaultValue = meshGo.activeSelf
-                                    };
-                                    newSt.targets.Add(meshGo);
-                                    item.subToggles.Add(newSt);
-                                }
-                            }
-                            UpdateWizardDroppedList();
-                        })
-                        {
-                            text = "⚡ 一键生成全部子开关"
-                        };
-                        genAllSubBtn.AddToClassList("btn-gen-all-subtoggles");
-
-                        quickSubTitleRow.Add(quickSubTitle);
-                        quickSubTitleRow.Add(genAllSubBtn);
-                        body.Add(quickSubTitleRow);
+                        body.Add(quickSubTitle);
 
                         var quickSubWrap = new VisualElement();
                         quickSubWrap.AddToClassList("wz-chips-wrap");

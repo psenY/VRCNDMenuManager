@@ -54,7 +54,7 @@
                     <ui:VisualElement class="section-header-row">
                         <ui:Label text="拖入目标物体列表 (从 Hierarchy 多选拖入下方区域)：" class="section-label" />
                         <ui:VisualElement style="flex-direction: row;">
-                            <ui:Button name="wzGenAllSubTogglesGlobalBtn" text="⚡ 全部物品全建子开关" class="btn-sm btn-gen-all-subtoggles" style="margin-right: 6px;" tooltip="为列表里的所有衣服/发型一键生成其全部子部件开关" />
+                            <ui:Button name="wzGenAllSubTogglesGlobalBtn" text="全部物品全建子开关" class="btn-sm btn-gen-all-subtoggles" style="margin-right: 6px;" tooltip="为列表里的所有衣服/发型一键生成其全部子部件开关" />
                             <ui:Button name="wzClearItemsBtn" text="清空列表" class="btn-sm btn-dark" />
                         </ui:VisualElement>
                     </ui:VisualElement>
