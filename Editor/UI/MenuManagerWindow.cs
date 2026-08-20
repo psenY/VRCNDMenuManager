@@ -416,6 +416,30 @@ namespace Custom.NDMenuManager.Editor.UI
                 UpdateWizardDroppedList();
             });
 
+            var wzGenAllSubTogglesGlobalBtn = rootVisualElement.Q<Button>("wzGenAllSubTogglesGlobalBtn");
+            wzGenAllSubTogglesGlobalBtn?.RegisterCallback<ClickEvent>(_ =>
+            {
+                foreach (var item in wizardItems)
+                {
+                    var allMeshes = GetMeshGameObjects(item.gameObject);
+                    foreach (var meshGo in allMeshes)
+                    {
+                        if (allMeshes.Count > 1 && meshGo == item.gameObject) continue;
+                        if (!item.subToggles.Exists(st => st.targets.Contains(meshGo)))
+                        {
+                            var newSt = new WizardSubToggle
+                            {
+                                toggleName = meshGo.name,
+                                defaultValue = meshGo.activeSelf
+                            };
+                            newSt.targets.Add(meshGo);
+                            item.subToggles.Add(newSt);
+                        }
+                    }
+                }
+                UpdateWizardDroppedList();
+            });
+
             // Setup Drop Area
             SetupWizardDropArea();
 
@@ -686,6 +710,33 @@ namespace Custom.NDMenuManager.Editor.UI
                 addSubBtn.AddToClassList("btn-add-subtoggle");
                 addSubBtn.style.marginRight = 4;
 
+                var genAllSubHeaderBtn = new Button(() =>
+                {
+                    var allMeshes = GetMeshGameObjects(item.gameObject);
+                    foreach (var meshGo in allMeshes)
+                    {
+                        if (allMeshes.Count > 1 && meshGo == item.gameObject) continue;
+                        if (!item.subToggles.Exists(st => st.targets.Contains(meshGo)))
+                        {
+                            var newSt = new WizardSubToggle
+                            {
+                                toggleName = meshGo.name,
+                                defaultValue = meshGo.activeSelf
+                            };
+                            newSt.targets.Add(meshGo);
+                            item.subToggles.Add(newSt);
+                        }
+                    }
+                    item.isExpanded = true;
+                    UpdateWizardDroppedList();
+                })
+                {
+                    text = "⚡ 全建子开关",
+                    tooltip = "一键为该物品下的所有内部散件各建立一个独立子开关"
+                };
+                genAllSubHeaderBtn.AddToClassList("btn-gen-all-subtoggles");
+                genAllSubHeaderBtn.style.marginRight = 4;
+
                 // Delete Button
                 var delBtn = new Button(() =>
                 {
@@ -701,6 +752,7 @@ namespace Custom.NDMenuManager.Editor.UI
                 header.Add(nameInput);
                 header.Add(summaryBadge);
                 header.Add(addSubBtn);
+                header.Add(genAllSubHeaderBtn);
                 header.Add(delBtn);
 
                 card.Add(header);
