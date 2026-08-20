@@ -157,11 +157,13 @@
 
 .wizard-config-scroll {
     flex-grow: 1;
+    min-width: 560px;
     padding: 12px 14px;
 }
 
 .wizard-preview-pane {
     flex-grow: 1;
+    min-width: 320px;
     background-color: #10121b;
     border-left-width: 1px;
     border-left-color: #202438;
