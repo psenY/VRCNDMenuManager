@@ -423,9 +423,10 @@ namespace Custom.NDMenuManager.Editor.UI
                 foreach (var item in wizardItems)
                 {
                     var allMeshes = GetMeshGameObjects(item.gameObject);
-                    foreach (var meshGo in allMeshes)
+                    var subMeshes = allMeshes.Where(m => m != item.gameObject).ToList();
+                    var targetList = subMeshes.Count > 0 ? subMeshes : allMeshes;
+                    foreach (var meshGo in targetList)
                     {
-                        if (allMeshes.Count > 1 && meshGo == item.gameObject) continue;
                         if (!item.subToggles.Exists(st => st.targets.Contains(meshGo)))
                         {
                             var newSt = new WizardSubToggle
@@ -740,9 +741,10 @@ namespace Custom.NDMenuManager.Editor.UI
                 var genAllSubHeaderBtn = new Button(() =>
                 {
                     var allMeshes = GetMeshGameObjects(item.gameObject);
-                    foreach (var meshGo in allMeshes)
+                    var subMeshes = allMeshes.Where(m => m != item.gameObject).ToList();
+                    var targetList = subMeshes.Count > 0 ? subMeshes : allMeshes;
+                    foreach (var meshGo in targetList)
                     {
-                        if (allMeshes.Count > 1 && meshGo == item.gameObject) continue;
                         if (!item.subToggles.Exists(st => st.targets.Contains(meshGo)))
                         {
                             var newSt = new WizardSubToggle
@@ -790,6 +792,10 @@ namespace Custom.NDMenuManager.Editor.UI
                     var body = new VisualElement();
                     body.AddToClassList("wz-item-body");
 
+                    var allMeshes = GetMeshGameObjects(item.gameObject);
+                    var subMeshes = allMeshes.Where(m => m != item.gameObject).ToList();
+                    var availableSubTargets = subMeshes.Count > 0 ? subMeshes : allMeshes;
+
                     // 1. Main Switch Targets Section
                     var mainTitle = new Label("【换装主开关受控部件】（随套装/发型整体显隐）：");
                     mainTitle.AddToClassList("wz-subpart-group-title");
@@ -797,8 +803,6 @@ namespace Custom.NDMenuManager.Editor.UI
 
                     var mainChipsWrap = new VisualElement();
                     mainChipsWrap.AddToClassList("wz-chips-wrap");
-
-                    var allMeshes = GetMeshGameObjects(item.gameObject);
 
                     if (item.mainTargets.Count == 0)
                     {
@@ -880,7 +884,7 @@ namespace Custom.NDMenuManager.Editor.UI
                             var addTargetToSubBtn = new Button(() =>
                             {
                                 var menu = new GenericMenu();
-                                foreach (var meshGo in allMeshes)
+                                foreach (var meshGo in availableSubTargets)
                                 {
                                     var targetMesh = meshGo;
                                     bool isAlreadyIn = subToggle.targets.Contains(targetMesh);
@@ -945,7 +949,7 @@ namespace Custom.NDMenuManager.Editor.UI
                     }
 
                     // 3. Quick Sub-Toggle Creation & Multi-Select Grouping
-                    if (allMeshes.Count > 1)
+                    if (subMeshes.Count > 0)
                     {
                         var quickSubHeaderRow = new VisualElement();
                         quickSubHeaderRow.style.flexDirection = FlexDirection.Row;
@@ -954,7 +958,7 @@ namespace Custom.NDMenuManager.Editor.UI
                         quickSubHeaderRow.style.marginBottom = 6;
                         quickSubHeaderRow.style.marginTop = 6;
 
-                        var quickSubTitle = new Label("【所有内部子部件】（勾选多个可一键合并为单开关）：");
+                        var quickSubTitle = new Label($"【所有内部子部件】（共 {subMeshes.Count} 件，勾选可一键合并为单开关）：");
                         quickSubTitle.AddToClassList("wz-subpart-group-title");
                         quickSubTitle.style.marginBottom = 0;
                         quickSubTitle.style.marginTop = 0;
@@ -1004,9 +1008,8 @@ namespace Custom.NDMenuManager.Editor.UI
                         {
                             var selectAllBtn = new Button(() =>
                             {
-                                foreach (var m in allMeshes)
+                                foreach (var m in subMeshes)
                                 {
-                                    if (allMeshes.Count > 1 && m == item.gameObject) continue;
                                     item.selectedSubMeshes.Add(m);
                                 }
                                 UpdateWizardDroppedList();
@@ -1025,7 +1028,7 @@ namespace Custom.NDMenuManager.Editor.UI
                         var quickSubWrap = new VisualElement();
                         quickSubWrap.AddToClassList("wz-chips-wrap");
 
-                        foreach (var meshGo in allMeshes)
+                        foreach (var meshGo in subMeshes)
                         {
                             var targetMesh = meshGo;
                             bool isChecked = item.selectedSubMeshes.Contains(targetMesh);
