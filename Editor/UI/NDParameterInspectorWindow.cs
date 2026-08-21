@@ -27,7 +27,6 @@ namespace Custom.NDMenuManager.Editor.UI
         private string searchKeyword = "";
         private BitBudgetResult currentResult;
 
-        [MenuItem("Tools/psenY7 ND Menu Manager/参数预算与详情总览", priority = 102)]
         public static void Open()
         {
             var win = GetWindow<NDParameterInspectorWindow>("参数预算与详情", true);

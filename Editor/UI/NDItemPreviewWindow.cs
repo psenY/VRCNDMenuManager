@@ -21,7 +21,6 @@ namespace Custom.NDMenuManager.Editor.UI
         private Label materialInfoLabel;
         private Label statusBadge;
 
-        [MenuItem("Tools/psenY7 ND Menu Manager/部件 3D 预览窗口", priority = 101)]
         public static void Open()
         {
             var win = GetWindow<NDItemPreviewWindow>("部件预览", true);
