@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
-    <Style src="project://database/Packages/com.custom.nd-menu-manager/Editor/UI/MenuGeneratorWizard.uss?fileID=7433441132597879392&amp;guid=7bca74e2d7870a44cb2996924b17b2b6&amp;type=3#MenuGeneratorWizard" />
+    <Style src="project://database/Packages/pseny7.nd-menu-manager/Editor/UI/MenuGeneratorWizard.uss?fileID=7433441132597879392&amp;guid=7bca74e2d7870a44cb2996924b17b2b6&amp;type=3#MenuGeneratorWizard" />
     
     <ui:VisualElement class="wizard-root">
         <!-- Header -->

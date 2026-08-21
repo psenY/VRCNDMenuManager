@@ -224,7 +224,7 @@ namespace Custom.NDMenuManager.Editor.UI
         {
             // 1. Load Visual Tree
             var visualTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(
-                "Packages/com.custom.nd-menu-manager/Editor/UI/MenuManagerWindow.uxml"
+                "Packages/pseny7.nd-menu-manager/Editor/UI/MenuManagerWindow.uxml"
             );
 
             if (visualTree == null)
@@ -249,7 +249,7 @@ namespace Custom.NDMenuManager.Editor.UI
 
             // 2. Load and attach StyleSheet
             var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(
-                "Packages/com.custom.nd-menu-manager/Editor/UI/MenuManagerWindow.uss"
+                "Packages/pseny7.nd-menu-manager/Editor/UI/MenuManagerWindow.uss"
             );
             if (styleSheet == null)
             {
