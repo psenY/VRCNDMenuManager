@@ -596,17 +596,8 @@ namespace Custom.NDMenuManager.Editor.UI
                 isExpanded = true
             };
 
-            var meshObjects = GetMeshGameObjects(go);
-
-            // Always add all mesh objects to mainTargets by default so the main switch controls all components
-            foreach (var obj in meshObjects)
-            {
-                if (!item.mainTargets.Contains(obj)) item.mainTargets.Add(obj);
-            }
-            if (!item.mainTargets.Contains(go))
-            {
-                item.mainTargets.Add(go);
-            }
+            // Main switch controls the root object by default. All child sub-meshes automatically inherit parent active state.
+            item.mainTargets.Add(go);
 
             wizardItems.Add(item);
         }
@@ -1496,14 +1487,6 @@ namespace Custom.NDMenuManager.Editor.UI
                         activeWhenOn = true
                     });
                 }
-                if (!primaryMainList.Contains(targetGo))
-                {
-                    mainToggle.objectTargets.Add(new GameObjectToggleTarget
-                    {
-                        targetObject = targetGo,
-                        activeWhenOn = true
-                    });
-                }
 
                 // Turn OFF existing outfits' targets
                 if (mutualExclusive)
@@ -1530,7 +1513,7 @@ namespace Custom.NDMenuManager.Editor.UI
                         var otherTargets = otherItem.mainTargets.Count > 0 ? otherItem.mainTargets : new List<GameObject> { otherItem.gameObject };
                         foreach (var otherGo in otherTargets)
                         {
-                            if (otherGo != null)
+                            if (otherGo != null && !primaryMainList.Contains(otherGo))
                             {
                                 mainToggle.objectTargets.Add(new GameObjectToggleTarget
                                 {
@@ -1538,14 +1521,6 @@ namespace Custom.NDMenuManager.Editor.UI
                                     activeWhenOn = false
                                 });
                             }
-                        }
-                        if (!otherTargets.Contains(otherItem.gameObject))
-                        {
-                            mainToggle.objectTargets.Add(new GameObjectToggleTarget
-                            {
-                                targetObject = otherItem.gameObject,
-                                activeWhenOn = false
-                            });
                         }
                     }
                 }
@@ -1695,14 +1670,6 @@ namespace Custom.NDMenuManager.Editor.UI
                         activeWhenOn = true
                     });
                 }
-                if (!primaryMainList.Contains(targetGo))
-                {
-                    mainToggle.objectTargets.Add(new GameObjectToggleTarget
-                    {
-                        targetObject = targetGo,
-                        activeWhenOn = true
-                    });
-                }
 
                 // Turn OFF other items' targets
                 if (mutualExclusive)
@@ -1716,7 +1683,7 @@ namespace Custom.NDMenuManager.Editor.UI
                         var otherTargets = otherItem.mainTargets.Count > 0 ? otherItem.mainTargets : new List<GameObject> { otherItem.gameObject };
                         foreach (var otherGo in otherTargets)
                         {
-                            if (otherGo != null)
+                            if (otherGo != null && !primaryMainList.Contains(otherGo))
                             {
                                 mainToggle.objectTargets.Add(new GameObjectToggleTarget
                                 {
@@ -1724,14 +1691,6 @@ namespace Custom.NDMenuManager.Editor.UI
                                     activeWhenOn = false
                                 });
                             }
-                        }
-                        if (!otherTargets.Contains(otherItem.gameObject))
-                        {
-                            mainToggle.objectTargets.Add(new GameObjectToggleTarget
-                            {
-                                targetObject = otherItem.gameObject,
-                                activeWhenOn = false
-                            });
                         }
                     }
                 }
