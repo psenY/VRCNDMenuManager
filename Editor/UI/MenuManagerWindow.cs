@@ -1168,6 +1168,55 @@ namespace Custom.NDMenuManager.Editor.UI
             return chip;
         }
 
+        private GameObject FindExistingMenuRoot(string folderName)
+        {
+            if (currentAvatar == null) return null;
+            var subMenus = currentAvatar.GetComponentsInChildren<NDSubMenu>(true);
+            foreach (var sm in subMenus)
+            {
+                if (sm.MenuName == folderName || sm.gameObject.name == folderName)
+                {
+                    return sm.gameObject;
+                }
+            }
+            return null;
+        }
+
+        private (int nextIndex, int existingCount, string sharedParamName, List<string> existingItemNames) AnalyzeExistingExclusiveGroup(GameObject rootGo, string folderName)
+        {
+            string defaultParamName = $"{folderName}_Select".Replace(" ", "_");
+            var existingNames = new List<string>();
+            if (rootGo == null) return (1, 0, defaultParamName, existingNames);
+
+            var toggles = rootGo.GetComponentsInChildren<NDToggleItem>(true);
+            int maxVal = 0;
+            int count = 0;
+            string paramName = defaultParamName;
+
+            foreach (var t in toggles)
+            {
+                if (t.UseIntParameter)
+                {
+                    count++;
+                    if (!string.IsNullOrEmpty(t.ParameterName)) paramName = t.ParameterName;
+                    if (t.ParameterValue > maxVal) maxVal = t.ParameterValue;
+                }
+            }
+
+            for (int i = 0; i < rootGo.transform.childCount; i++)
+            {
+                var child = rootGo.transform.GetChild(i);
+                if (child.GetComponent<NDSubMenu>() != null)
+                {
+                    existingNames.Add(child.name);
+                }
+            }
+
+            int finalCount = Mathf.Max(count, existingNames.Count);
+            int nextIdx = Mathf.Max(maxVal + 1, finalCount + 1);
+            return (nextIdx, finalCount, paramName, existingNames);
+        }
+
         private void UpdateProspectiveTreePreview()
         {
             if (wzTreePreviewContainer == null) return;
@@ -1193,16 +1242,51 @@ namespace Custom.NDMenuManager.Editor.UI
             bool isExclusive = currentWizardMode == WizardMode.Exclusive;
             int estBits = 0;
 
-            // 1. Root Folder Row
-            var rootRow = CreateProspectiveRow(0, "d_Folder Icon", $"{rootFolderName} (根菜单)", "badge-folder", "主目录");
-            wzTreePreviewContainer.Add(rootRow);
+            var existingRoot = FindExistingMenuRoot(rootFolderName);
+            int startIndex = 1;
 
-            if (isExclusive)
+            if (existingRoot != null)
             {
-                estBits += 8; // Shared Int param consumes 8 bits
+                if (isExclusive)
+                {
+                    var (nextIdx, existCount, _, existingNames) = AnalyzeExistingExclusiveGroup(existingRoot, rootFolderName);
+                    startIndex = nextIdx;
+
+                    var rootRow = CreateProspectiveRow(0, "d_Folder Icon", $"{rootFolderName} (追加至现有菜单)", "badge-folder", $"已有 {existCount} 项");
+                    wzTreePreviewContainer.Add(rootRow);
+
+                    // List existing items (dimmed)
+                    foreach (var existName in existingNames)
+                    {
+                        var existItemRow = CreateProspectiveRow(1, "d_Folder Icon", $"{existName} [已存在·保留原状]", "badge-slot", "原有物品");
+                        existItemRow.style.opacity = 0.65f;
+                        wzTreePreviewContainer.Add(existItemRow);
+                    }
+                }
+                else
+                {
+                    var rootRow = CreateProspectiveRow(0, "d_Folder Icon", $"{rootFolderName} (追加至现有散件目录)", "badge-folder", "已有目录");
+                    wzTreePreviewContainer.Add(rootRow);
+                }
+
+                if (wzGenerateBtn != null)
+                {
+                    wzGenerateBtn.text = $"智能追加选中的 {wizardItems.Count} 个新物品至现有【{rootFolderName}】";
+                }
+            }
+            else
+            {
+                var rootRow = CreateProspectiveRow(0, "d_Folder Icon", $"{rootFolderName} (新建根菜单)", "badge-folder", "新主目录");
+                wzTreePreviewContainer.Add(rootRow);
+                if (isExclusive) estBits += 8;
+
+                if (wzGenerateBtn != null)
+                {
+                    wzGenerateBtn.text = $"一键全新生成【{rootFolderName}】菜单结构";
+                }
             }
 
-            // 2. Items
+            // Render new items to be added
             for (int i = 0; i < wizardItems.Count; i++)
             {
                 var item = wizardItems[i];
@@ -1211,17 +1295,14 @@ namespace Custom.NDMenuManager.Editor.UI
 
                 if (isExclusive)
                 {
-                    // Subfolder for this Outfit/Hair
-                    var itemFolderRow = CreateProspectiveRow(1, "d_Folder Icon", itemDisplayName, "badge-folder", "子文件夹");
+                    var itemFolderRow = CreateProspectiveRow(1, "d_Folder Icon", itemDisplayName, "badge-folder", existingRoot != null ? $"新增追加 #{startIndex + i}" : "子文件夹");
                     wzTreePreviewContainer.Add(itemFolderRow);
 
-                    // Main Toggle Switch inside subfolder
                     string switchPrefix = (rootFolderName.Contains("发") || rootFolderName.Contains("头")) ? "切换至" : "穿上";
                     int mainCount = item.mainTargets.Count > 0 ? item.mainTargets.Count : 1;
-                    var mainToggleRow = CreateProspectiveRow(2, "d_FilterSelectedOnly", $"{switchPrefix} {itemDisplayName}", "badge-slot", $"槽位 #{i + 1} | 控制 {mainCount} 个组件");
+                    var mainToggleRow = CreateProspectiveRow(2, "d_FilterSelectedOnly", $"{switchPrefix} {itemDisplayName}", "badge-slot", $"槽位 #{startIndex + i} | 控制 {mainCount} 个组件");
                     wzTreePreviewContainer.Add(mainToggleRow);
 
-                    // Sub Toggles inside subfolder
                     foreach (var sub in item.subToggles)
                     {
                         if (sub == null || string.IsNullOrEmpty(sub.toggleName)) continue;
@@ -1233,7 +1314,6 @@ namespace Custom.NDMenuManager.Editor.UI
                 }
                 else
                 {
-                    // Props Mode (Direct toggle under root or sub toggles)
                     int count = item.mainTargets.Count + item.subToggles.Sum(s => s.targets.Count);
                     var propRow = CreateProspectiveRow(1, "d_Toggle Icon", itemDisplayName, "badge-toggle", $"控制 {count} 个组件 | 1b");
                     wzTreePreviewContainer.Add(propRow);
@@ -1241,10 +1321,9 @@ namespace Custom.NDMenuManager.Editor.UI
                 }
             }
 
-            // Update Budget Badge
             if (wzEstBudgetBadge != null)
             {
-                wzEstBudgetBadge.text = $"预计 {estBits} / 256 bits";
+                wzEstBudgetBadge.text = $"新增预计 {estBits} / 256 bits";
                 wzEstBudgetBadge.style.color = estBits > 256 ? new Color(0.95f, 0.3f, 0.3f) : new Color(0.3f, 0.85f, 0.5f);
             }
         }
@@ -1290,7 +1369,46 @@ namespace Custom.NDMenuManager.Editor.UI
             }
 
             string folderName = string.IsNullOrEmpty(wzFolderNameField?.value) ? "菜单" : wzFolderNameField.value;
+            var existingRoot = FindExistingMenuRoot(folderName);
 
+            if (existingRoot != null)
+            {
+                int choice = EditorUtility.DisplayDialogComplex(
+                    "检测到已有菜单",
+                    $"当前模型上已存在【{folderName}】菜单体系。\n\n" +
+                    $"• 点击【智能追加】（推荐）：保留全部已有衣服、形态键及子开关，自动将新物品以顺延编号追加到现有【{folderName}】中。\n" +
+                    $"• 点击【覆盖重置】：清除原有的【{folderName}】并重新全新生成全部内容。\n" +
+                    $"• 点击【取消】：返回检查。",
+                    "智能追加 (保留已有设置)",
+                    "覆盖重置 (全部重新生成)",
+                    "取消"
+                );
+
+                if (choice == 2) return; // Cancel
+
+                if (choice == 0) // Append
+                {
+                    switch (currentWizardMode)
+                    {
+                        case WizardMode.Exclusive:
+                            AppendToExclusiveStructure(existingRoot, folderName);
+                            break;
+                        case WizardMode.Props:
+                            AppendToPropsStructure(existingRoot, folderName);
+                            break;
+                    }
+
+                    RefreshAll();
+                    SwitchView(ViewMode.Manager);
+                    EditorUtility.DisplayDialog("追加成功", $"已成功向现有【{folderName}】智能追加 {wizardItems.Count} 个新物品！\n已有全部衣服、子开关及形态键已 100% 完整保留。", "确定");
+                    return;
+                }
+
+                // User chose Overwrite
+                Undo.DestroyObjectImmediate(existingRoot);
+            }
+
+            // Normal new generation
             switch (currentWizardMode)
             {
                 case WizardMode.Exclusive:
@@ -1301,11 +1419,218 @@ namespace Custom.NDMenuManager.Editor.UI
                     break;
             }
 
-            // Refresh & switch directly to Manager View so user sees the result immediately!
             RefreshAll();
             SwitchView(ViewMode.Manager);
-
             EditorUtility.DisplayDialog("生成成功", $"已成功生成【{folderName}】完整菜单体系与多部件控制项！\n已自动为您切换至【菜单层级管理】面板。", "确定");
+        }
+
+        private void AppendToExclusiveStructure(GameObject rootGo, string rootFolderName)
+        {
+            bool mutualExclusive = wzAutoMutualExclusive == null || wzAutoMutualExclusive.value;
+            bool preventNudity = wzPreventNudityToggle == null || wzPreventNudityToggle.value;
+            bool genThumbnails = wzAutoThumbnailToggle == null || wzAutoThumbnailToggle.value;
+            string avatarName = currentAvatar.gameObject.name;
+
+            var (startIndex, _, sharedParamName, _) = AnalyzeExistingExclusiveGroup(rootGo, rootFolderName);
+
+            // Collect all existing outfit targets to ensure new outfit toggles turn them OFF
+            var existingToggles = rootGo.GetComponentsInChildren<NDToggleItem>(true);
+            var existingMainTargets = new List<GameObject>();
+            foreach (var et in existingToggles)
+            {
+                if (et.UseIntParameter)
+                {
+                    foreach (var target in et.objectTargets)
+                    {
+                        if (target.targetObject != null && target.activeWhenOn && !existingMainTargets.Contains(target.targetObject))
+                        {
+                            existingMainTargets.Add(target.targetObject);
+                        }
+                    }
+                }
+            }
+
+            for (int i = 0; i < wizardItems.Count; i++)
+            {
+                var item = wizardItems[i];
+                if (item == null || item.gameObject == null) continue;
+                var targetGo = item.gameObject;
+                string itemDisplayName = string.IsNullOrEmpty(item.displayName) ? targetGo.name : item.displayName;
+
+                Texture2D itemIcon = null;
+                if (genThumbnails)
+                {
+                    var raw = ThumbnailGenerator.CaptureGameObjectThumbnail(targetGo);
+                    itemIcon = ThumbnailGenerator.SaveThumbnailAsset(raw, avatarName, itemDisplayName);
+                }
+
+                // Create Item SubMenu Folder
+                var itemSubGo = new GameObject(itemDisplayName);
+                itemSubGo.transform.SetParent(rootGo.transform, false);
+                var itemSubMenu = itemSubGo.AddComponent<NDSubMenu>();
+                itemSubMenu.MenuName = itemDisplayName;
+                itemSubMenu.Icon = itemIcon;
+                Undo.RegisterCreatedObjectUndo(itemSubGo, "Append Exclusive Item");
+
+                // Create Main Switch for this item
+                string switchPrefix = (rootFolderName.Contains("发") || rootFolderName.Contains("头")) ? "切换至" : "穿上";
+                var mainToggleGo = new GameObject($"{switchPrefix}_{itemDisplayName}");
+                mainToggleGo.transform.SetParent(itemSubGo.transform, false);
+                var mainToggle = mainToggleGo.AddComponent<NDToggleItem>();
+                mainToggle.MenuName = $"{switchPrefix} {itemDisplayName}";
+                mainToggle.Icon = itemIcon;
+                mainToggle.UseIntParameter = mutualExclusive;
+                mainToggle.ParameterName = mutualExclusive ? sharedParamName : $"Toggle_{rootFolderName}_{itemDisplayName.Replace(" ", "_")}";
+                mainToggle.ParameterValue = startIndex + i;
+                mainToggle.DefaultValue = false; // Newly appended items default to OFF
+                mainToggle.AllowAllOff = !preventNudity;
+
+                // Add all main targets (ON)
+                var primaryMainList = item.mainTargets.Count > 0 ? item.mainTargets : new List<GameObject> { targetGo };
+                foreach (var mTarget in primaryMainList)
+                {
+                    if (mTarget == null) continue;
+                    mainToggle.objectTargets.Add(new GameObjectToggleTarget
+                    {
+                        targetObject = mTarget,
+                        activeWhenOn = true
+                    });
+                }
+                if (!primaryMainList.Contains(targetGo))
+                {
+                    mainToggle.objectTargets.Add(new GameObjectToggleTarget
+                    {
+                        targetObject = targetGo,
+                        activeWhenOn = true
+                    });
+                }
+
+                // Turn OFF existing outfits' targets
+                if (mutualExclusive)
+                {
+                    foreach (var existGo in existingMainTargets)
+                    {
+                        if (existGo != null && !primaryMainList.Contains(existGo) && existGo != targetGo)
+                        {
+                            mainToggle.objectTargets.Add(new GameObjectToggleTarget
+                            {
+                                targetObject = existGo,
+                                activeWhenOn = false
+                            });
+                        }
+                    }
+
+                    // Turn OFF other newly appended items' targets
+                    for (int j = 0; j < wizardItems.Count; j++)
+                    {
+                        if (i == j) continue;
+                        var otherItem = wizardItems[j];
+                        if (otherItem == null || otherItem.gameObject == null) continue;
+
+                        var otherTargets = otherItem.mainTargets.Count > 0 ? otherItem.mainTargets : new List<GameObject> { otherItem.gameObject };
+                        foreach (var otherGo in otherTargets)
+                        {
+                            if (otherGo != null)
+                            {
+                                mainToggle.objectTargets.Add(new GameObjectToggleTarget
+                                {
+                                    targetObject = otherGo,
+                                    activeWhenOn = false
+                                });
+                            }
+                        }
+                        if (!otherTargets.Contains(otherItem.gameObject))
+                        {
+                            mainToggle.objectTargets.Add(new GameObjectToggleTarget
+                            {
+                                targetObject = otherItem.gameObject,
+                                activeWhenOn = false
+                            });
+                        }
+                    }
+                }
+
+                // Create Custom Multi-Component Sub Toggles
+                foreach (var subToggle in item.subToggles)
+                {
+                    if (subToggle == null || string.IsNullOrEmpty(subToggle.toggleName) || subToggle.targets.Count == 0) continue;
+
+                    Texture2D subIcon = null;
+                    var primaryTarget = subToggle.targets[0];
+                    if (genThumbnails && primaryTarget != null)
+                    {
+                        var raw = ThumbnailGenerator.CaptureGameObjectThumbnail(primaryTarget);
+                        subIcon = ThumbnailGenerator.SaveThumbnailAsset(raw, avatarName, $"{itemDisplayName}_{subToggle.toggleName}");
+                    }
+
+                    var subToggleGo = new GameObject(subToggle.toggleName);
+                    subToggleGo.transform.SetParent(itemSubGo.transform, false);
+                    var nToggle = subToggleGo.AddComponent<NDToggleItem>();
+                    nToggle.MenuName = subToggle.toggleName;
+                    nToggle.Icon = subIcon;
+                    nToggle.ParameterName = $"Toggle_{itemDisplayName}_{subToggle.toggleName}".Replace(" ", "_");
+                    nToggle.DefaultValue = subToggle.defaultValue;
+
+                    foreach (var targetObj in subToggle.targets)
+                    {
+                        if (targetObj == null) continue;
+                        nToggle.objectTargets.Add(new GameObjectToggleTarget
+                        {
+                            targetObject = targetObj,
+                            activeWhenOn = true
+                        });
+                    }
+                }
+            }
+        }
+
+        private void AppendToPropsStructure(GameObject rootGo, string rootFolderName)
+        {
+            bool genThumbnails = wzAutoThumbnailToggle == null || wzAutoThumbnailToggle.value;
+            string avatarName = currentAvatar.gameObject.name;
+
+            foreach (var item in wizardItems)
+            {
+                if (item == null || item.gameObject == null) continue;
+                var prop = item.gameObject;
+                string propDisplayName = string.IsNullOrEmpty(item.displayName) ? prop.name : item.displayName;
+
+                Texture2D propIcon = null;
+                if (genThumbnails)
+                {
+                    var raw = ThumbnailGenerator.CaptureGameObjectThumbnail(prop);
+                    propIcon = ThumbnailGenerator.SaveThumbnailAsset(raw, avatarName, $"Prop_{propDisplayName}");
+                }
+
+                var toggleGo = new GameObject(propDisplayName);
+                toggleGo.transform.SetParent(rootGo.transform, false);
+                var toggle = toggleGo.AddComponent<NDToggleItem>();
+                toggle.MenuName = propDisplayName;
+                toggle.Icon = propIcon;
+                toggle.ParameterName = "Toggle_" + propDisplayName.Replace(" ", "_");
+                toggle.DefaultValue = prop.activeSelf;
+                Undo.RegisterCreatedObjectUndo(toggleGo, "Append Prop Item");
+
+                var allTargets = new List<GameObject>(item.mainTargets);
+                if (!allTargets.Contains(prop)) allTargets.Add(prop);
+                foreach (var st in item.subToggles)
+                {
+                    foreach (var t in st.targets)
+                    {
+                        if (!allTargets.Contains(t)) allTargets.Add(t);
+                    }
+                }
+
+                foreach (var t in allTargets)
+                {
+                    if (t == null) continue;
+                    toggle.objectTargets.Add(new GameObjectToggleTarget
+                    {
+                        targetObject = t,
+                        activeWhenOn = true
+                    });
+                }
+            }
         }
 
         private void GenerateExclusiveStructure(string rootFolderName)
