@@ -1,0 +1,43 @@
+﻿name: Build and Publish Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Extract Tag Info
+        id: tag_info
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}"
+          VERSION="${TAG_NAME#v}"
+          echo "tag=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Create Package Zip
+        run: |
+          zip -r "pseny7.vrc.nd-menu-manager-${{ steps.tag_info.outputs.version }}.zip" \
+            package.json \
+            README.md \
+            LICENSE \
+            Runtime \
+            Editor \
+            -x "*.git*" "*.DS_Store*"
+
+      - name: Publish Release to GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ steps.tag_info.outputs.tag }}
+          tag_name: ${{ steps.tag_info.outputs.tag }}
+          files: pseny7.vrc.nd-menu-manager-${{ steps.tag_info.outputs.version }}.zip
+          generate_release_notes: true
