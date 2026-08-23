@@ -31,7 +31,7 @@
 2. 点击左上角 `+` 号，选择 **Add package from git URL...**。
 3. 输入以下地址并点击 Add：
    ```text
-   https://github.com/psenY/pseny7.vrc.nd-menu-manager.git
+   https://github.com/psenY/VRCNDMenuManager.git
    ```
 
 ### 方法 2：通过 Package Manager (本地文件夹添加)
