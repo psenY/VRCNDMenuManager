@@ -1441,6 +1441,7 @@ namespace Custom.NDMenuManager.Editor.UI
                 }
             }
 
+            int nextValue = startIndex;
             for (int i = 0; i < wizardItems.Count; i++)
             {
                 var item = wizardItems[i];
@@ -1455,80 +1456,96 @@ namespace Custom.NDMenuManager.Editor.UI
                     itemIcon = ThumbnailGenerator.SaveThumbnailAsset(raw, avatarName, itemDisplayName);
                 }
 
-                // Create Item SubMenu Folder
-                var itemSubGo = new GameObject(itemDisplayName);
-                itemSubGo.transform.SetParent(rootGo.transform, false);
-                var itemSubMenu = itemSubGo.AddComponent<NDSubMenu>();
-                itemSubMenu.MenuName = itemDisplayName;
-                itemSubMenu.Icon = itemIcon;
-                Undo.RegisterCreatedObjectUndo(itemSubGo, "Append Exclusive Item");
+                // [fix D1] 该物品若已存在于目标根下，复用其原有子菜单与主开关，只补齐缺少的子部件开关
+                var existingSub = FindExistingItemSubMenu(rootGo, itemDisplayName);
+                GameObject itemSubGo;
+                NDToggleItem existingMain = null;
+                if (existingSub != null)
+                {
+                    itemSubGo = existingSub.gameObject;
+                    existingMain = FindExistingMainToggle(itemSubGo);
+                }
+                else
+                {
+                    itemSubGo = new GameObject(itemDisplayName);
+                    itemSubGo.transform.SetParent(rootGo.transform, false);
+                    var itemSubMenu = itemSubGo.AddComponent<NDSubMenu>();
+                    itemSubMenu.MenuName = itemDisplayName;
+                    itemSubMenu.Icon = itemIcon;
+                    Undo.RegisterCreatedObjectUndo(itemSubGo, "Append Exclusive Item");
+                }
 
                 // Create Main Switch for this item
                 string switchPrefix = (rootFolderName.Contains("发") || rootFolderName.Contains("头")) ? "切换至" : "穿上";
-                var mainToggleGo = new GameObject($"{switchPrefix}_{itemDisplayName}");
-                mainToggleGo.transform.SetParent(itemSubGo.transform, false);
-                var mainToggle = mainToggleGo.AddComponent<NDToggleItem>();
-                mainToggle.MenuName = $"{switchPrefix} {itemDisplayName}";
-                mainToggle.Icon = itemIcon;
-                mainToggle.UseIntParameter = mutualExclusive;
-                mainToggle.ParameterName = mutualExclusive ? sharedParamName : $"Toggle_{rootFolderName}_{itemDisplayName.Replace(" ", "_")}";
-                mainToggle.ParameterValue = startIndex + i;
-                mainToggle.DefaultValue = false; // Newly appended items default to OFF
-                mainToggle.AllowAllOff = !preventNudity;
-
-                // Add all main targets (ON)
-                var primaryMainList = item.mainTargets.Count > 0 ? item.mainTargets : new List<GameObject> { targetGo };
-                foreach (var mTarget in primaryMainList)
+                if (existingMain == null)
                 {
-                    if (mTarget == null) continue;
-                    mainToggle.objectTargets.Add(new GameObjectToggleTarget
+                        var mainToggleGo = new GameObject($"{switchPrefix}_{itemDisplayName}");
+                    mainToggleGo.transform.SetParent(itemSubGo.transform, false);
+                    var mainToggle = mainToggleGo.AddComponent<NDToggleItem>();
+                    mainToggle.MenuName = $"{switchPrefix} {itemDisplayName}";
+                    mainToggle.Icon = itemIcon;
+                    mainToggle.UseIntParameter = mutualExclusive;
+                    mainToggle.ParameterName = mutualExclusive ? sharedParamName : $"Toggle_{rootFolderName}_{itemDisplayName.Replace(" ", "_")}";
+                    mainToggle.ParameterValue = nextValue++;
+                    mainToggle.DefaultValue = false; // Newly appended items default to OFF
+                    mainToggle.AllowAllOff = !preventNudity;
+    
+                    // Add all main targets (ON)
+                    var primaryMainList = item.mainTargets.Count > 0 ? item.mainTargets : new List<GameObject> { targetGo };
+                    foreach (var mTarget in primaryMainList)
                     {
-                        targetObject = mTarget,
-                        activeWhenOn = true
-                    });
-                }
-
-                // Turn OFF existing outfits' targets
-                if (mutualExclusive)
-                {
-                    foreach (var existGo in existingMainTargets)
-                    {
-                        if (existGo != null && !primaryMainList.Contains(existGo) && existGo != targetGo)
+                        if (mTarget == null) continue;
+                        mainToggle.objectTargets.Add(new GameObjectToggleTarget
                         {
-                            mainToggle.objectTargets.Add(new GameObjectToggleTarget
-                            {
-                                targetObject = existGo,
-                                activeWhenOn = false
-                            });
-                        }
+                            targetObject = mTarget,
+                            activeWhenOn = true
+                        });
                     }
-
-                    // Turn OFF other newly appended items' targets
-                    for (int j = 0; j < wizardItems.Count; j++)
+    
+                    // Turn OFF existing outfits' targets
+                    if (mutualExclusive)
                     {
-                        if (i == j) continue;
-                        var otherItem = wizardItems[j];
-                        if (otherItem == null || otherItem.gameObject == null) continue;
-
-                        var otherTargets = otherItem.mainTargets.Count > 0 ? otherItem.mainTargets : new List<GameObject> { otherItem.gameObject };
-                        foreach (var otherGo in otherTargets)
+                        foreach (var existGo in existingMainTargets)
                         {
-                            if (otherGo != null && !primaryMainList.Contains(otherGo))
+                            if (existGo != null && !primaryMainList.Contains(existGo) && existGo != targetGo && !mainToggle.objectTargets.Any(t => t.targetObject == existGo))
                             {
                                 mainToggle.objectTargets.Add(new GameObjectToggleTarget
                                 {
-                                    targetObject = otherGo,
+                                    targetObject = existGo,
                                     activeWhenOn = false
                                 });
                             }
                         }
+    
+                        // Turn OFF other newly appended items' targets
+                        for (int j = 0; j < wizardItems.Count; j++)
+                        {
+                            if (i == j) continue;
+                            var otherItem = wizardItems[j];
+                            if (otherItem == null || otherItem.gameObject == null) continue;
+    
+                            var otherTargets = otherItem.mainTargets.Count > 0 ? otherItem.mainTargets : new List<GameObject> { otherItem.gameObject };
+                            foreach (var otherGo in otherTargets)
+                            {
+                                if (otherGo != null && !primaryMainList.Contains(otherGo) && !mainToggle.objectTargets.Any(t => t.targetObject == otherGo))
+                                {
+                                    mainToggle.objectTargets.Add(new GameObjectToggleTarget
+                                    {
+                                        targetObject = otherGo,
+                                        activeWhenOn = false
+                                    });
+                                }
+                            }
+                        }
                     }
+    
                 }
 
                 // Create Custom Multi-Component Sub Toggles
                 foreach (var subToggle in item.subToggles)
                 {
                     if (subToggle == null || string.IsNullOrEmpty(subToggle.toggleName) || subToggle.targets.Count == 0) continue;
+                    if (FindExistingSubToggle(itemSubGo, subToggle.toggleName) != null) continue; // [fix D1] 子部件开关已存在则跳过
 
                     Texture2D subIcon = null;
                     var primaryTarget = subToggle.targets[0];
@@ -1559,6 +1576,49 @@ namespace Custom.NDMenuManager.Editor.UI
             }
         }
 
+        // ===== [fix 2026-09-30] 追加时的同名查重工具（psenY7 / DSH 补丁）=====
+        private static NDSubMenu FindExistingItemSubMenu(GameObject rootGo, string displayName)
+        {
+            if (rootGo == null || string.IsNullOrEmpty(displayName)) return null;
+            foreach (var sub in rootGo.GetComponentsInChildren<NDSubMenu>(true))
+            {
+                if (sub == null || sub.gameObject == rootGo) continue;
+                var n = string.IsNullOrEmpty(sub.MenuName) ? sub.gameObject.name : sub.MenuName;
+                if (string.Equals(n, displayName, StringComparison.OrdinalIgnoreCase)) return sub;
+            }
+            return null;
+        }
+
+        private static NDToggleItem FindExistingMainToggle(GameObject subGo)
+        {
+            if (subGo == null) return null;
+            foreach (var t in subGo.GetComponentsInChildren<NDToggleItem>(true))
+                if (t != null && t.UseIntParameter) return t;
+            return null;
+        }
+
+        private static NDToggleItem FindExistingSubToggle(GameObject subGo, string displayName)
+        {
+            if (subGo == null || string.IsNullOrEmpty(displayName)) return null;
+            foreach (var t in subGo.GetComponentsInChildren<NDToggleItem>(true))
+            {
+                if (t == null || t.UseIntParameter) continue;
+                if (string.Equals(t.MenuName, displayName, StringComparison.OrdinalIgnoreCase)) return t;
+            }
+            return null;
+        }
+
+        private static NDToggleItem FindExistingMenuToggle(GameObject rootGo, string displayName)
+        {
+            if (rootGo == null || string.IsNullOrEmpty(displayName)) return null;
+            foreach (var t in rootGo.GetComponentsInChildren<NDToggleItem>(true))
+            {
+                if (t == null || t.UseIntParameter) continue;
+                if (string.Equals(t.MenuName, displayName, StringComparison.OrdinalIgnoreCase)) return t;
+            }
+            return null;
+        }
+
         private void AppendToPropsStructure(GameObject rootGo, string rootFolderName)
         {
             bool genThumbnails = wzAutoThumbnailToggle == null || wzAutoThumbnailToggle.value;
@@ -1577,6 +1637,21 @@ namespace Custom.NDMenuManager.Editor.UI
                     propIcon = ThumbnailGenerator.SaveThumbnailAsset(raw, avatarName, $"Prop_{propDisplayName}");
                 }
 
+                // [fix D1] 道具已存在就不重复建同名开关，只把缺的目标补进去
+                var existingProp = FindExistingMenuToggle(rootGo, propDisplayName);
+                if (existingProp != null)
+                {
+                    var mergedProp = new List<GameObject>(item.mainTargets);
+                    if (!mergedProp.Contains(prop)) mergedProp.Add(prop);
+                    foreach (var st0 in item.subToggles) foreach (var t0 in st0.targets) if (!mergedProp.Contains(t0)) mergedProp.Add(t0);
+                    foreach (var t0 in mergedProp)
+                    {
+                        if (t0 == null) continue;
+                        if (existingProp.objectTargets.Any(x => x.targetObject == t0)) continue;
+                        existingProp.objectTargets.Add(new GameObjectToggleTarget { targetObject = t0, activeWhenOn = true });
+                    }
+                    continue;
+                }
                 var toggleGo = new GameObject(propDisplayName);
                 toggleGo.transform.SetParent(rootGo.transform, false);
                 var toggle = toggleGo.AddComponent<NDToggleItem>();
