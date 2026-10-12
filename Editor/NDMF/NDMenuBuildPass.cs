@@ -153,6 +153,10 @@ namespace Custom.NDMenuManager.Editor.NDMF
             MenuSanitizer.SanitizeAll(expressionsMenu);
             MenuPager.SplitAll(expressionsMenu);
 
+            // 6.6 Leave the finished tree in the Unity log, so the built result can be checked
+            //     without running ManualProcessAvatar by hand.
+            UnityEngine.Debug.Log(MenuReporter.BuildReport(expressionsMenu, expressionParameters));
+
             // 7. Cleanup NDMenu components from cloned object so they don't remain on final uploaded avatar
             foreach (var item in toggleItems) Object.DestroyImmediate(item);
             foreach (var item in toggleGroups) Object.DestroyImmediate(item);
