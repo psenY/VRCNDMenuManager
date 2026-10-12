@@ -61,9 +61,9 @@ namespace Custom.NDMenuManager.Editor.Generators
                 menu.controls = new List<VRCExpressionsMenu.Control>();
             }
 
-            if (menu.controls.Count >= 8)
+            if (menu.controls.Count >= MenuPager.ControlsPerPage)
             {
-                Debug.LogWarning($"[NDMenuManager] Menu '{menu.name}' has reached the 8-control limit! Control '{control.name}' might not be displayed properly unless split.");
+                Debug.LogWarning($"[NDMenuManager] Menu '{menu.name}' goes over {MenuPager.ControlsPerPage} controls with '{control.name}'; the overflow will be split into extra pages automatically at build time.");
             }
 
             menu.controls.Insert(0, control);
@@ -148,9 +148,9 @@ namespace Custom.NDMenuManager.Editor.Generators
                 menu.controls = new List<VRCExpressionsMenu.Control>();
             }
 
-            if (menu.controls.Count >= 8)
+            if (menu.controls.Count >= MenuPager.ControlsPerPage)
             {
-                Debug.LogWarning($"[NDMenuManager] Menu '{menu.name}' has reached the 8-control limit! Control '{control.name}' might not be displayed properly unless split.");
+                Debug.LogWarning($"[NDMenuManager] Menu '{menu.name}' goes over {MenuPager.ControlsPerPage} controls with '{control.name}'; the overflow will be split into extra pages automatically at build time.");
             }
 
             menu.controls.Add(control);

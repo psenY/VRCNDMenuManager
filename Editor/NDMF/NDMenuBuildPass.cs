@@ -147,9 +147,10 @@ namespace Custom.NDMenuManager.Editor.NDMF
                 MenuMerger.AddRadialPuppetControl(targetMenu, puppet);
             }
 
-            // 6.5 Split every page that exceeds VRChat's controls-per-page limit. This must stay the
-            //     last menu mutation in this pass: anything added afterwards could overflow a page
-            //     again, and no later pass would fix it.
+            // 6.5 Repair structurally invalid controls, then split overfull pages. Both must stay the
+            //     last menu mutations in this pass: anything added afterwards could overflow a page
+            //     again, and no later pass would repair or split it.
+            MenuSanitizer.SanitizeAll(expressionsMenu);
             MenuPager.SplitAll(expressionsMenu);
 
             // 7. Cleanup NDMenu components from cloned object so they don't remain on final uploaded avatar
