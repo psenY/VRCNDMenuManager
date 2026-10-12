@@ -8,28 +8,6 @@ namespace Custom.NDMenuManager.Editor.Generators
 {
     public static class MenuMerger
     {
-        public static void AddParameter(VRCExpressionParameters expParams, string name, VRCExpressionParameters.ValueType type, float defaultValue, bool saved, bool synced)
-        {
-            if (expParams == null || string.IsNullOrEmpty(name)) return;
-
-            // Check if already exists
-            if (expParams.FindParameter(name) != null) return;
-
-            var paramList = new List<VRCExpressionParameters.Parameter>(expParams.parameters ?? new VRCExpressionParameters.Parameter[0]);
-
-            var newParam = new VRCExpressionParameters.Parameter
-            {
-                name = name,
-                valueType = type,
-                defaultValue = defaultValue,
-                saved = saved,
-                networkSynced = synced
-            };
-
-            paramList.Add(newParam);
-            expParams.parameters = paramList.ToArray();
-        }
-
         public static void AddToggleControl(VRCExpressionsMenu menu, NDToggleItem toggle, bool insertAtTop = false)
         {
             if (menu == null || toggle == null) return;

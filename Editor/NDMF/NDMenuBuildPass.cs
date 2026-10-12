@@ -100,7 +100,7 @@ namespace Custom.NDMenuManager.Editor.NDMF
                 );
 
                 bool allowAllOff = groupToggles.Exists(t => t.AllowAllOff);
-                MenuMerger.AddParameter(expressionParameters, paramName, VRCExpressionParameters.ValueType.Int, defaultVal, saved, synced);
+                ParameterMerger.Add(expressionParameters, paramName, VRCExpressionParameters.ValueType.Int, defaultVal, saved, synced, groupToggles.Count > 0 ? groupToggles[0] : null);
                 ControllerGenerator.AddSharedIntToggleLayer(fxController, paramName, defaultVal, allOffClip, states, allowAllOff);
             }
 
@@ -111,7 +111,7 @@ namespace Custom.NDMenuManager.Editor.NDMF
                 ControllerGenerator.AddToggleLayer(fxController, toggle, offClip, onClip);
 
                 string paramName = string.IsNullOrEmpty(toggle.ParameterName) ? toggle.MenuName : toggle.ParameterName;
-                MenuMerger.AddParameter(expressionParameters, paramName, VRCExpressionParameters.ValueType.Bool, toggle.DefaultValue ? 1f : 0f, toggle.Saved, toggle.Synced);
+                ParameterMerger.Add(expressionParameters, paramName, VRCExpressionParameters.ValueType.Bool, toggle.DefaultValue ? 1f : 0f, toggle.Saved, toggle.Synced, toggle);
 
                 var targetMenu = FindParentMenu(toggle.transform, subMenuMap, expressionsMenu);
                 MenuMerger.AddToggleControl(targetMenu, toggle);
@@ -126,7 +126,7 @@ namespace Custom.NDMenuManager.Editor.NDMF
                 ControllerGenerator.AddToggleGroupLayer(fxController, group, optionClips);
 
                 string paramName = string.IsNullOrEmpty(group.ParameterName) ? group.MenuName : group.ParameterName;
-                MenuMerger.AddParameter(expressionParameters, paramName, VRCExpressionParameters.ValueType.Int, group.DefaultIndex, group.Saved, group.Synced);
+                ParameterMerger.Add(expressionParameters, paramName, VRCExpressionParameters.ValueType.Int, group.DefaultIndex, group.Saved, group.Synced, group);
 
                 var targetMenu = FindParentMenu(group.transform, subMenuMap, expressionsMenu);
                 MenuMerger.AddToggleGroupControl(targetMenu, group);
@@ -141,7 +141,7 @@ namespace Custom.NDMenuManager.Editor.NDMF
                 ControllerGenerator.AddRadialPuppetLayer(fxController, puppet, minClip, maxClip);
 
                 string paramName = string.IsNullOrEmpty(puppet.ParameterName) ? puppet.MenuName : puppet.ParameterName;
-                MenuMerger.AddParameter(expressionParameters, paramName, VRCExpressionParameters.ValueType.Float, puppet.DefaultValue, puppet.Saved, puppet.Synced);
+                ParameterMerger.Add(expressionParameters, paramName, VRCExpressionParameters.ValueType.Float, puppet.DefaultValue, puppet.Saved, puppet.Synced, puppet);
 
                 var targetMenu = FindParentMenu(puppet.transform, subMenuMap, expressionsMenu);
                 MenuMerger.AddRadialPuppetControl(targetMenu, puppet);
