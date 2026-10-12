@@ -39,14 +39,23 @@ namespace Custom.NDMenuManager.Editor.NDMF
             var expressionsMenu = descriptor.expressionsMenu;
             var expressionParameters = descriptor.expressionParameters;
 
-            // 3. Map submenus hierarchically from root to leaves (supports nested folders like 衣柜 -> 套装1)
+            // 3. Map submenus hierarchically from root to leaves (supports nested folders like 衣柜 -> 套装1).
+            //    Same-named folders under the same parent merge into one, so a wardrobe spread over
+            //    several prefabs ends up as a single entry instead of one per prefab.
             var subMenuMap = new Dictionary<NDSubMenu, VRCExpressionsMenu>();
             var orderedSubMenus = subMenus.OrderBy(sm => GetHierarchyDepth(sm.transform)).ToList();
+            var mergedFolders = 0;
             foreach (var sm in orderedSubMenus)
             {
                 var parentMenu = FindParentMenu(sm.transform, subMenuMap, expressionsMenu);
-                var vrcSubMenu = MenuMerger.CreateSubMenuControl(parentMenu, sm.MenuName, sm.Icon);
+                var vrcSubMenu = MenuFolders.GetOrCreate(parentMenu, sm.MenuName, sm.Icon, out var reused);
+                if (reused) mergedFolders++;
                 subMenuMap[sm] = vrcSubMenu;
+            }
+
+            if (mergedFolders > 0)
+            {
+                UnityEngine.Debug.Log($"[NDMenuManager] Merged {mergedFolders} sub-menu component(s) into a folder that already exists under the same parent.");
             }
 
             // 4. Process Toggle Items

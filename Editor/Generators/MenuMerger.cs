@@ -101,24 +101,6 @@ namespace Custom.NDMenuManager.Editor.Generators
             AddControlToMenu(parentMenu, subMenuControl);
         }
 
-        public static VRCExpressionsMenu CreateSubMenuControl(VRCExpressionsMenu parentMenu, string name, Texture2D icon)
-        {
-            var subMenu = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
-            subMenu.name = $"SubMenu_{name}";
-            subMenu.controls = new List<VRCExpressionsMenu.Control>();
-
-            var subMenuControl = new VRCExpressionsMenu.Control
-            {
-                name = name,
-                icon = icon,
-                type = VRCExpressionsMenu.Control.ControlType.SubMenu,
-                subMenu = subMenu
-            };
-
-            AddControlToMenu(parentMenu, subMenuControl);
-            return subMenu;
-        }
-
         private static void AddControlToMenu(VRCExpressionsMenu menu, VRCExpressionsMenu.Control control)
         {
             if (menu.controls == null)
