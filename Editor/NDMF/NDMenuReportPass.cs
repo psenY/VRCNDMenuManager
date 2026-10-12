@@ -30,6 +30,14 @@ namespace Custom.NDMenuManager.Editor.NDMF
             if (descriptor.expressionsMenu == null) return;
 
             UnityEngine.Debug.Log(MenuReporter.BuildReport(descriptor.expressionsMenu, descriptor.expressionParameters));
+
+            // Problems that would otherwise only surface in game - a control whose parameter is not
+            // declared, so pressing it does nothing.
+            var findings = MenuValidator.BuildFindings(descriptor.expressionsMenu, descriptor.expressionParameters);
+            if (!string.IsNullOrEmpty(findings))
+            {
+                UnityEngine.Debug.LogWarning(findings);
+            }
         }
     }
 }
