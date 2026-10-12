@@ -22,6 +22,8 @@ namespace Custom.NDMenuManager.Editor.Generators
                 value = toggle.UseIntParameter ? toggle.ParameterValue : 1f
             };
 
+            MenuOrdering.Note(control, toggle, toggle.OrderIndex);
+
             if (insertAtTop || toggle.UseIntParameter)
             {
                 InsertControlAtTopOfMenu(menu, control);
@@ -63,6 +65,7 @@ namespace Custom.NDMenuManager.Editor.Generators
                 }
             };
 
+            MenuOrdering.Note(control, puppet, puppet.OrderIndex);
             AddControlToMenu(menu, control);
         }
 
@@ -98,6 +101,7 @@ namespace Custom.NDMenuManager.Editor.Generators
                 subMenu = groupSubMenu
             };
 
+            MenuOrdering.Note(subMenuControl, group, group.OrderIndex);
             AddControlToMenu(parentMenu, subMenuControl);
         }
 

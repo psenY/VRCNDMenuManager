@@ -58,10 +58,11 @@ namespace Custom.NDMenuManager.Editor.Generators
 
         /// <summary>
         /// Gets the sub-menu for this name under this parent, creating and attaching it the first
-        /// time. <paramref name="reused"/> reports which of the two happened.
+        /// time. <paramref name="reused"/> reports which of the two happened; a folder that is being
+        /// created is also registered with its sort key.
         /// </summary>
         public static VRCExpressionsMenu GetOrCreate(VRCExpressionsMenu parentMenu, string name,
-            Texture2D icon, out bool reused)
+            Texture2D icon, int orderIndex, Component source, out bool reused)
         {
             reused = false;
             if (parentMenu == null) return null;
@@ -82,7 +83,7 @@ namespace Custom.NDMenuManager.Editor.Generators
             subMenu.name = "SubMenu_" + name;
             subMenu.controls = new List<VRCExpressionsMenu.Control>();
 
-            parentMenu.controls.Add(new VRCExpressionsMenu.Control
+            var control = new VRCExpressionsMenu.Control
             {
                 name = name,
                 icon = icon,
@@ -93,7 +94,10 @@ namespace Custom.NDMenuManager.Editor.Generators
                 parameter = new VRCExpressionsMenu.Control.Parameter { name = "" },
                 subParameters = new VRCExpressionsMenu.Control.Parameter[0],
                 labels = new VRCExpressionsMenu.Control.Label[0]
-            });
+            };
+
+            parentMenu.controls.Add(control);
+            MenuOrdering.Note(control, source, orderIndex);
 
             return subMenu;
         }

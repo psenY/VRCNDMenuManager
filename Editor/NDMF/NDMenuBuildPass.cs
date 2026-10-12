@@ -42,13 +42,14 @@ namespace Custom.NDMenuManager.Editor.NDMF
             // 3. Map submenus hierarchically from root to leaves (supports nested folders like 衣柜 -> 套装1).
             //    Same-named folders under the same parent merge into one, so a wardrobe spread over
             //    several prefabs ends up as a single entry instead of one per prefab.
+            MenuOrdering.Begin();
             var subMenuMap = new Dictionary<NDSubMenu, VRCExpressionsMenu>();
             var orderedSubMenus = subMenus.OrderBy(sm => GetHierarchyDepth(sm.transform)).ToList();
             var mergedFolders = 0;
             foreach (var sm in orderedSubMenus)
             {
                 var parentMenu = FindParentMenu(sm.transform, subMenuMap, expressionsMenu);
-                var vrcSubMenu = MenuFolders.GetOrCreate(parentMenu, sm.MenuName, sm.Icon, out var reused);
+                var vrcSubMenu = MenuFolders.GetOrCreate(parentMenu, sm.MenuName, sm.Icon, sm.OrderIndex, sm, out var reused);
                 if (reused) mergedFolders++;
                 subMenuMap[sm] = vrcSubMenu;
             }
@@ -156,10 +157,11 @@ namespace Custom.NDMenuManager.Editor.NDMF
                 MenuMerger.AddRadialPuppetControl(targetMenu, puppet);
             }
 
-            // 6.5 Repair structurally invalid controls, then split overfull pages. Both must stay the
-            //     last menu mutations in this pass: anything added afterwards could overflow a page
-            //     again, and no later pass would repair or split it. The summary of the finished menu
-            //     is logged from BuildPhase.Optimizing instead, once the other plugins are done.
+            // 6.5 Put every menu into the order its components asked for, repair structurally invalid
+            //     controls, then split overfull pages. All three must stay the last menu mutations in
+            //     this pass: anything added afterwards would escape them. The summary of the finished
+            //     menu is logged from BuildPhase.Optimizing instead, once the other plugins are done.
+            MenuOrdering.Apply(expressionsMenu);
             MenuSanitizer.SanitizeAll(expressionsMenu);
             MenuPager.SplitAll(expressionsMenu);
 
