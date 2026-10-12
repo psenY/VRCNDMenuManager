@@ -17,6 +17,14 @@ namespace Custom.NDMenuManager.Editor.NDMF
                 {
                     NDMenuBuildPass.Execute(ctx);
                 });
+
+            // Report last. This pass only reads: by Optimizing the menu also contains what Modular
+            // Avatar and the other plugins installed during Transforming.
+            InPhase(BuildPhase.Optimizing)
+                .Run("Report ND Menu result", ctx =>
+                {
+                    NDMenuReportPass.Execute(ctx);
+                });
         }
     }
 }

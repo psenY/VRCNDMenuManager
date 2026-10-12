@@ -158,13 +158,10 @@ namespace Custom.NDMenuManager.Editor.NDMF
 
             // 6.5 Repair structurally invalid controls, then split overfull pages. Both must stay the
             //     last menu mutations in this pass: anything added afterwards could overflow a page
-            //     again, and no later pass would repair or split it.
+            //     again, and no later pass would repair or split it. The summary of the finished menu
+            //     is logged from BuildPhase.Optimizing instead, once the other plugins are done.
             MenuSanitizer.SanitizeAll(expressionsMenu);
             MenuPager.SplitAll(expressionsMenu);
-
-            // 6.6 Leave the finished tree in the Unity log, so the built result can be checked
-            //     without running ManualProcessAvatar by hand.
-            UnityEngine.Debug.Log(MenuReporter.BuildReport(expressionsMenu, expressionParameters));
 
             // 7. Cleanup NDMenu components from cloned object so they don't remain on final uploaded avatar
             foreach (var item in toggleItems) Object.DestroyImmediate(item);
