@@ -22,6 +22,11 @@ namespace Custom.NDMenuManager.Runtime
         [SerializeField] private string menuName = "New Outfit Group";
         [SerializeField] private Texture2D icon;
 
+        [Header("Menu Ordering")]
+        [Tooltip("Sort key within its parent menu. 0 = fall back to the scene hierarchy order; lower numbers come first.")]
+        [SerializeField] private int orderIndex = 0;
+        public int OrderIndex { get => orderIndex; set => orderIndex = value; }
+
         [Header("Parameter Settings")]
         [SerializeField] private string parameterName = "";
         [SerializeField] private int defaultIndex = 0;

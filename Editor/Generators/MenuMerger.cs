@@ -8,28 +8,6 @@ namespace Custom.NDMenuManager.Editor.Generators
 {
     public static class MenuMerger
     {
-        public static void AddParameter(VRCExpressionParameters expParams, string name, VRCExpressionParameters.ValueType type, float defaultValue, bool saved, bool synced)
-        {
-            if (expParams == null || string.IsNullOrEmpty(name)) return;
-
-            // Check if already exists
-            if (expParams.FindParameter(name) != null) return;
-
-            var paramList = new List<VRCExpressionParameters.Parameter>(expParams.parameters ?? new VRCExpressionParameters.Parameter[0]);
-
-            var newParam = new VRCExpressionParameters.Parameter
-            {
-                name = name,
-                valueType = type,
-                defaultValue = defaultValue,
-                saved = saved,
-                networkSynced = synced
-            };
-
-            paramList.Add(newParam);
-            expParams.parameters = paramList.ToArray();
-        }
-
         public static void AddToggleControl(VRCExpressionsMenu menu, NDToggleItem toggle, bool insertAtTop = false)
         {
             if (menu == null || toggle == null) return;
@@ -43,6 +21,8 @@ namespace Custom.NDMenuManager.Editor.Generators
                 parameter = new VRCExpressionsMenu.Control.Parameter { name = paramName },
                 value = toggle.UseIntParameter ? toggle.ParameterValue : 1f
             };
+
+            MenuOrdering.Note(control, toggle, toggle.OrderIndex);
 
             if (insertAtTop || toggle.UseIntParameter)
             {
@@ -61,9 +41,9 @@ namespace Custom.NDMenuManager.Editor.Generators
                 menu.controls = new List<VRCExpressionsMenu.Control>();
             }
 
-            if (menu.controls.Count >= 8)
+            if (menu.controls.Count >= MenuPager.ControlsPerPage)
             {
-                Debug.LogWarning($"[NDMenuManager] Menu '{menu.name}' has reached the 8-control limit! Control '{control.name}' might not be displayed properly unless split.");
+                Debug.LogWarning($"[NDMenuManager] Menu '{menu.name}' goes over {MenuPager.ControlsPerPage} controls with '{control.name}'; the overflow will be split into extra pages automatically at build time.");
             }
 
             menu.controls.Insert(0, control);
@@ -85,6 +65,7 @@ namespace Custom.NDMenuManager.Editor.Generators
                 }
             };
 
+            MenuOrdering.Note(control, puppet, puppet.OrderIndex);
             AddControlToMenu(menu, control);
         }
 
@@ -120,25 +101,8 @@ namespace Custom.NDMenuManager.Editor.Generators
                 subMenu = groupSubMenu
             };
 
+            MenuOrdering.Note(subMenuControl, group, group.OrderIndex);
             AddControlToMenu(parentMenu, subMenuControl);
-        }
-
-        public static VRCExpressionsMenu CreateSubMenuControl(VRCExpressionsMenu parentMenu, string name, Texture2D icon)
-        {
-            var subMenu = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
-            subMenu.name = $"SubMenu_{name}";
-            subMenu.controls = new List<VRCExpressionsMenu.Control>();
-
-            var subMenuControl = new VRCExpressionsMenu.Control
-            {
-                name = name,
-                icon = icon,
-                type = VRCExpressionsMenu.Control.ControlType.SubMenu,
-                subMenu = subMenu
-            };
-
-            AddControlToMenu(parentMenu, subMenuControl);
-            return subMenu;
         }
 
         private static void AddControlToMenu(VRCExpressionsMenu menu, VRCExpressionsMenu.Control control)
@@ -148,9 +112,9 @@ namespace Custom.NDMenuManager.Editor.Generators
                 menu.controls = new List<VRCExpressionsMenu.Control>();
             }
 
-            if (menu.controls.Count >= 8)
+            if (menu.controls.Count >= MenuPager.ControlsPerPage)
             {
-                Debug.LogWarning($"[NDMenuManager] Menu '{menu.name}' has reached the 8-control limit! Control '{control.name}' might not be displayed properly unless split.");
+                Debug.LogWarning($"[NDMenuManager] Menu '{menu.name}' goes over {MenuPager.ControlsPerPage} controls with '{control.name}'; the overflow will be split into extra pages automatically at build time.");
             }
 
             menu.controls.Add(control);
